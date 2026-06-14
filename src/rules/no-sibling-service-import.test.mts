@@ -11,8 +11,8 @@ RuleTester.itOnly = it.only;
 const tester = new RuleTester();
 
 describe("no-sibling-service-import", () => {
-  it("flags a regular import from a sibling service file", () => {
-    tester.run("digital-alchemy/no-sibling-service-import", rule, {
+  describe("flags a regular import from a sibling service file", () => {
+    tester.run("no-sibling-service-import", rule, {
       invalid: [
         {
           code: `import { x } from "./b.service.mts";`,
@@ -24,8 +24,8 @@ describe("no-sibling-service-import", () => {
     });
   });
 
-  it("flags an import type from a sibling service file", () => {
-    tester.run("digital-alchemy/no-sibling-service-import", rule, {
+  describe("flags an import type from a sibling service file", () => {
+    tester.run("no-sibling-service-import", rule, {
       invalid: [
         {
           code: `import type { T } from "./b.service.mts";`,
@@ -37,8 +37,8 @@ describe("no-sibling-service-import", () => {
     });
   });
 
-  it("allows imports from contracts modules inside a service file", () => {
-    tester.run("digital-alchemy/no-sibling-service-import", rule, {
+  describe("allows imports from contracts modules inside a service file", () => {
+    tester.run("no-sibling-service-import", rule, {
       invalid: [],
       valid: [
         {
@@ -49,8 +49,8 @@ describe("no-sibling-service-import", () => {
     });
   });
 
-  it("allows imports from non-service helpers inside a service file", () => {
-    tester.run("digital-alchemy/no-sibling-service-import", rule, {
+  describe("allows imports from non-service helpers inside a service file", () => {
+    tester.run("no-sibling-service-import", rule, {
       invalid: [],
       valid: [
         {
@@ -61,8 +61,8 @@ describe("no-sibling-service-import", () => {
     });
   });
 
-  it("is inactive on non-service files", () => {
-    tester.run("digital-alchemy/no-sibling-service-import", rule, {
+  describe("is inactive on non-service files", () => {
+    tester.run("no-sibling-service-import", rule, {
       invalid: [],
       valid: [
         {

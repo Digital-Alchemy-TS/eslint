@@ -11,8 +11,8 @@ RuleTester.itOnly = it.only;
 const tester = new RuleTester();
 
 describe("module-declaration-merge", () => {
-  it("allows correct pattern with declaration merge after definition", () => {
-    tester.run("digital-alchemy/module-declaration-merge", rule, {
+  describe("allows correct pattern with declaration merge after definition", () => {
+    tester.run("module-declaration-merge", rule, {
       invalid: [],
       valid: [
         {
@@ -37,8 +37,8 @@ describe("module-declaration-merge", () => {
     });
   });
 
-  it("allows correct pattern with a different import source", () => {
-    tester.run("digital-alchemy/module-declaration-merge", rule, {
+  describe("allows correct pattern with a different import source", () => {
+    tester.run("module-declaration-merge", rule, {
       invalid: [],
       valid: [
         {
@@ -54,8 +54,8 @@ describe("module-declaration-merge", () => {
     });
   });
 
-  it("ignores files without CreateApplication or CreateLibrary", () => {
-    tester.run("digital-alchemy/module-declaration-merge", rule, {
+  describe("ignores files without CreateApplication or CreateLibrary", () => {
+    tester.run("module-declaration-merge", rule, {
       invalid: [],
       valid: [
         { code: `export function foo() {}` },
@@ -64,8 +64,8 @@ describe("module-declaration-merge", () => {
     });
   });
 
-  it("flags missing declare module block", () => {
-    tester.run("digital-alchemy/module-declaration-merge", rule, {
+  describe("flags missing declare module block", () => {
+    tester.run("module-declaration-merge", rule, {
       invalid: [
         {
           code: [
@@ -79,8 +79,8 @@ describe("module-declaration-merge", () => {
     });
   });
 
-  it("flags declare module without LoadedModules interface", () => {
-    tester.run("digital-alchemy/module-declaration-merge", rule, {
+  describe("flags declare module without LoadedModules interface", () => {
+    tester.run("module-declaration-merge", rule, {
       invalid: [
         {
           code: [
@@ -97,8 +97,8 @@ describe("module-declaration-merge", () => {
     });
   });
 
-  it("flags LoadedModules key that doesn't match the name property", () => {
-    tester.run("digital-alchemy/module-declaration-merge", rule, {
+  describe("flags LoadedModules key that doesn't match the name property", () => {
+    tester.run("module-declaration-merge", rule, {
       invalid: [
         {
           code: [
@@ -117,8 +117,8 @@ describe("module-declaration-merge", () => {
     });
   });
 
-  it("flags declare module that appears before the definition", () => {
-    tester.run("digital-alchemy/module-declaration-merge", rule, {
+  describe("flags declare module that appears before the definition", () => {
+    tester.run("module-declaration-merge", rule, {
       invalid: [
         {
           code: [

@@ -11,8 +11,8 @@ RuleTester.itOnly = it.only;
 const tester = new RuleTester();
 
 describe("no-service-external-mutation", () => {
-  it("flags .push() on a module-scope binding inside a service factory", () => {
-    tester.run("digital-alchemy/no-service-external-mutation", rule, {
+  describe("flags .push() on a module-scope binding inside a service factory", () => {
+    tester.run("no-service-external-mutation", rule, {
       invalid: [
         {
           code: `
@@ -28,8 +28,8 @@ export function S({ http }: TServiceParams) {
     });
   });
 
-  it("flags .splice() on a module-scope binding inside a service factory", () => {
-    tester.run("digital-alchemy/no-service-external-mutation", rule, {
+  describe("flags .splice() on a module-scope binding inside a service factory", () => {
+    tester.run("no-service-external-mutation", rule, {
       invalid: [
         {
           code: `
@@ -47,8 +47,8 @@ export function S({ http }: TServiceParams) {
     });
   });
 
-  it("flags .sort() on a module-scope binding inside a service factory", () => {
-    tester.run("digital-alchemy/no-service-external-mutation", rule, {
+  describe("flags .sort() on a module-scope binding inside a service factory", () => {
+    tester.run("no-service-external-mutation", rule, {
       invalid: [
         {
           code: `
@@ -64,8 +64,8 @@ export function S({ http }: TServiceParams) {
     });
   });
 
-  it("flags all other mutating methods on module-scope bindings", () => {
-    tester.run("digital-alchemy/no-service-external-mutation", rule, {
+  describe("flags all other mutating methods on module-scope bindings", () => {
+    tester.run("no-service-external-mutation", rule, {
       invalid: [
         {
           code: `
@@ -114,8 +114,8 @@ export function S({ http }: TServiceParams) { ARR.copyWithin(0, 1); }
     });
   });
 
-  it("does NOT flag mutation of a service-local array", () => {
-    tester.run("digital-alchemy/no-service-external-mutation", rule, {
+  describe("does NOT flag mutation of a service-local array", () => {
+    tester.run("no-service-external-mutation", rule, {
       invalid: [],
       valid: [
         {
@@ -132,8 +132,8 @@ export function S({ http }: TServiceParams) {
     });
   });
 
-  it("does NOT flag mutation OUTSIDE any service factory", () => {
-    tester.run("digital-alchemy/no-service-external-mutation", rule, {
+  describe("does NOT flag mutation OUTSIDE any service factory", () => {
+    tester.run("no-service-external-mutation", rule, {
       invalid: [],
       valid: [
         {
@@ -154,8 +154,8 @@ function helper() { EXTERNAL.push("a"); }
     });
   });
 
-  it("does NOT flag non-mutating methods on module-scope bindings", () => {
-    tester.run("digital-alchemy/no-service-external-mutation", rule, {
+  describe("does NOT flag non-mutating methods on module-scope bindings", () => {
+    tester.run("no-service-external-mutation", rule, {
       invalid: [],
       valid: [
         {

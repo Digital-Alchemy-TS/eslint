@@ -23,7 +23,7 @@ function fixture(name: string) {
 
 const tester = new RuleTester({
   languageOptions: {
-    parserOptions: { project: "./tsconfig.json", tsconfigRootDir: FIXTURE_DIR },
+    parserOptions: { projectService: true, tsconfigRootDir: FIXTURE_DIR },
   },
 });
 
@@ -32,8 +32,8 @@ afterEach(() => {
 });
 
 describe("priority-init-order", () => {
-  it("flags a producer that wires after a consumer that construction-reads it", () => {
-    tester.run("digital-alchemy/priority-init-order", rule, {
+  describe("flags a producer that wires after a consumer that construction-reads it", () => {
+    tester.run("priority-init-order", rule, {
       invalid: [
         {
           ...fixture("order.module.mts"),
@@ -49,8 +49,8 @@ describe("priority-init-order", () => {
     });
   });
 
-  it("accepts a producer that wires before its consumer", () => {
-    tester.run("digital-alchemy/priority-init-order", rule, {
+  describe("accepts a producer that wires before its consumer", () => {
+    tester.run("priority-init-order", rule, {
       invalid: [],
       valid: [fixture("good.module.mts")],
     });

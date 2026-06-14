@@ -23,7 +23,7 @@ function fixture(name: string) {
 
 const tester = new RuleTester({
   languageOptions: {
-    parserOptions: { project: "./tsconfig.json", tsconfigRootDir: FIXTURE_DIR },
+    parserOptions: { projectService: true, tsconfigRootDir: FIXTURE_DIR },
   },
 });
 
@@ -32,8 +32,8 @@ afterEach(() => {
 });
 
 describe("no-undeclared-module-dependency", () => {
-  it("flags an undeclared module referenced via TServiceParams and via config", () => {
-    tester.run("digital-alchemy/no-undeclared-module-dependency", rule, {
+  describe("flags an undeclared module referenced via TServiceParams and via config", () => {
+    tester.run("no-undeclared-module-dependency", rule, {
       invalid: [
         {
           ...fixture("api.service.mts"),
@@ -47,8 +47,8 @@ describe("no-undeclared-module-dependency", () => {
     });
   });
 
-  it("accepts a service referencing only declared deps and framework injects", () => {
-    tester.run("digital-alchemy/no-undeclared-module-dependency", rule, {
+  describe("accepts a service referencing only declared deps and framework injects", () => {
+    tester.run("no-undeclared-module-dependency", rule, {
       invalid: [],
       valid: [fixture("clean.service.mts")],
     });

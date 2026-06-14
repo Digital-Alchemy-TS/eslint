@@ -23,7 +23,7 @@ function fixture(name: string) {
 
 const tester = new RuleTester({
   languageOptions: {
-    parserOptions: { project: "./tsconfig.json", tsconfigRootDir: FIXTURE_DIR },
+    parserOptions: { projectService: true, tsconfigRootDir: FIXTURE_DIR },
   },
 });
 
@@ -32,8 +32,8 @@ afterEach(() => {
 });
 
 describe("require-priority-init", () => {
-  it("flags a construction-read sibling missing from priorityInit", () => {
-    tester.run("digital-alchemy/require-priority-init", rule, {
+  describe("flags a construction-read sibling missing from priorityInit", () => {
+    tester.run("require-priority-init", rule, {
       invalid: [
         {
           ...fixture("missing.module.mts"),
@@ -44,10 +44,10 @@ describe("require-priority-init", () => {
     });
   });
 
-  it("flags a construction-read sibling even when it is declared before its consumer", () => {
+  describe("flags a construction-read sibling even when it is declared before its consumer", () => {
     // Declaration order is NOT a valid second boot-order knob: db is read at
     // construction and must be in priorityInit even though it is declared first.
-    tester.run("digital-alchemy/require-priority-init", rule, {
+    tester.run("require-priority-init", rule, {
       invalid: [
         {
           ...fixture("decl-order.module.mts"),
@@ -58,8 +58,8 @@ describe("require-priority-init", () => {
     });
   });
 
-  it("accepts a listed sibling and callback-only reads", () => {
-    tester.run("digital-alchemy/require-priority-init", rule, {
+  describe("accepts a listed sibling and callback-only reads", () => {
+    tester.run("require-priority-init", rule, {
       invalid: [],
       valid: [fixture("good.module.mts"), fixture("callback.module.mts")],
     });

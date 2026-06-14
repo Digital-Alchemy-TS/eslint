@@ -23,7 +23,7 @@ function fixture(name: string) {
 
 const tester = new RuleTester({
   languageOptions: {
-    parserOptions: { project: "./tsconfig.json", tsconfigRootDir: FIXTURE_DIR },
+    parserOptions: { projectService: true, tsconfigRootDir: FIXTURE_DIR },
   },
 });
 
@@ -32,8 +32,8 @@ afterEach(() => {
 });
 
 describe("no-unnecessary-priority-init", () => {
-  it("flags a priorityInit entry no sibling construction-reads", () => {
-    tester.run("digital-alchemy/no-unnecessary-priority-init", rule, {
+  describe("flags a priorityInit entry no sibling construction-reads", () => {
+    tester.run("no-unnecessary-priority-init", rule, {
       invalid: [
         {
           ...fixture("unused.module.mts"),
@@ -44,8 +44,8 @@ describe("no-unnecessary-priority-init", () => {
     });
   });
 
-  it("accepts a priorityInit whose every entry is construction-read", () => {
-    tester.run("digital-alchemy/no-unnecessary-priority-init", rule, {
+  describe("accepts a priorityInit whose every entry is construction-read", () => {
+    tester.run("no-unnecessary-priority-init", rule, {
       invalid: [],
       valid: [fixture("good.module.mts")],
     });

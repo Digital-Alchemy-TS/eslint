@@ -11,8 +11,8 @@ RuleTester.itOnly = it.only;
 const tester = new RuleTester();
 
 describe("no-service-module-scope-state", () => {
-  it("allows static primitive consts at module scope in a .service.mts file", () => {
-    tester.run("digital-alchemy/no-service-module-scope-state", rule, {
+  describe("allows static primitive consts at module scope in a .service.mts file", () => {
+    tester.run("no-service-module-scope-state", rule, {
       invalid: [],
       valid: [
         { code: `const FIELD_SEP = "";`, filename: "x.service.mts" },
@@ -25,8 +25,8 @@ describe("no-service-module-scope-state", () => {
     });
   });
 
-  it("allows any form in a non-.service.mts file (gate)", () => {
-    tester.run("digital-alchemy/no-service-module-scope-state", rule, {
+  describe("allows any form in a non-.service.mts file (gate)", () => {
+    tester.run("no-service-module-scope-state", rule, {
       invalid: [],
       valid: [
         { code: `let counter = 0;`, filename: "x.mts" },
@@ -37,8 +37,8 @@ describe("no-service-module-scope-state", () => {
     });
   });
 
-  it("flags let at module scope in a .service.mts file", () => {
-    tester.run("digital-alchemy/no-service-module-scope-state", rule, {
+  describe("flags let at module scope in a .service.mts file", () => {
+    tester.run("no-service-module-scope-state", rule, {
       invalid: [
         {
           code: `let counter = 0;`,
@@ -50,8 +50,8 @@ describe("no-service-module-scope-state", () => {
     });
   });
 
-  it("flags var at module scope in a .service.mts file", () => {
-    tester.run("digital-alchemy/no-service-module-scope-state", rule, {
+  describe("flags var at module scope in a .service.mts file", () => {
+    tester.run("no-service-module-scope-state", rule, {
       invalid: [
         {
           code: `var x = 1;`,
@@ -63,8 +63,8 @@ describe("no-service-module-scope-state", () => {
     });
   });
 
-  it("flags derived const (promisify call) at module scope in a .service.mts file", () => {
-    tester.run("digital-alchemy/no-service-module-scope-state", rule, {
+  describe("flags derived const (promisify call) at module scope in a .service.mts file", () => {
+    tester.run("no-service-module-scope-state", rule, {
       invalid: [
         {
           code: `const execFileAsync = promisify(execFile);`,
@@ -76,8 +76,8 @@ describe("no-service-module-scope-state", () => {
     });
   });
 
-  it("flags dynamic Map (no seed args) at module scope in a .service.mts file", () => {
-    tester.run("digital-alchemy/no-service-module-scope-state", rule, {
+  describe("flags dynamic Map (no seed args) at module scope in a .service.mts file", () => {
+    tester.run("no-service-module-scope-state", rule, {
       invalid: [
         {
           code: `const cache = new Map();`,
@@ -89,8 +89,8 @@ describe("no-service-module-scope-state", () => {
     });
   });
 
-  it("flags derived const (makeClient call) at module scope in a .service.mts file", () => {
-    tester.run("digital-alchemy/no-service-module-scope-state", rule, {
+  describe("flags derived const (makeClient call) at module scope in a .service.mts file", () => {
+    tester.run("no-service-module-scope-state", rule, {
       invalid: [
         {
           code: `const client = makeClient();`,
@@ -102,8 +102,8 @@ describe("no-service-module-scope-state", () => {
     });
   });
 
-  it("flags exported dynamic Set at module scope in a .service.mts file", () => {
-    tester.run("digital-alchemy/no-service-module-scope-state", rule, {
+  describe("flags exported dynamic Set at module scope in a .service.mts file", () => {
+    tester.run("no-service-module-scope-state", rule, {
       invalid: [
         {
           code: `export const store = new Set();`,
@@ -115,8 +115,8 @@ describe("no-service-module-scope-state", () => {
     });
   });
 
-  it("allows imports and a service factory with closure-state only", () => {
-    tester.run("digital-alchemy/no-service-module-scope-state", rule, {
+  describe("allows imports and a service factory with closure-state only", () => {
+    tester.run("no-service-module-scope-state", rule, {
       invalid: [],
       valid: [
         {
@@ -133,8 +133,8 @@ export function FooService({ logger }: TServiceParams) {
     });
   });
 
-  it("does NOT flag const inside the service factory body", () => {
-    tester.run("digital-alchemy/no-service-module-scope-state", rule, {
+  describe("does NOT flag const inside the service factory body", () => {
+    tester.run("no-service-module-scope-state", rule, {
       invalid: [],
       valid: [
         {
@@ -151,8 +151,8 @@ export function BarService({ logger }: TServiceParams) {
     });
   });
 
-  it("flags multiple non-static module-scope declarations in a .service.mts file, reports per-declarator", () => {
-    tester.run("digital-alchemy/no-service-module-scope-state", rule, {
+  describe("flags multiple non-static module-scope declarations in a .service.mts file, reports per-declarator", () => {
+    tester.run("no-service-module-scope-state", rule, {
       invalid: [
         {
           code: `
@@ -168,8 +168,8 @@ export function BazService({ logger }: TServiceParams) {}
     });
   });
 
-  it("reports per-declarator for mixed static/derived in the same const statement", () => {
-    tester.run("digital-alchemy/no-service-module-scope-state", rule, {
+  describe("reports per-declarator for mixed static/derived in the same const statement", () => {
+    tester.run("no-service-module-scope-state", rule, {
       invalid: [
         {
           // b is static (allowed), a is derived (flagged) -- only one error
@@ -184,8 +184,8 @@ export function BazService({ logger }: TServiceParams) {}
   });
 
   // Grounding example — the symmetric half of the FORMAT ping-pong test.
-  it("allows hoistable CallExpression ([...].join(moduleScopeConst)) at module scope", () => {
-    tester.run("digital-alchemy/no-service-module-scope-state", rule, {
+  describe("allows hoistable CallExpression ([...].join(moduleScopeConst)) at module scope", () => {
+    tester.run("no-service-module-scope-state", rule, {
       invalid: [],
       valid: [
         {
@@ -197,8 +197,8 @@ export function BazService({ logger }: TServiceParams) {}
   });
 
   // Grounding example — a deeply-nested fully-static structure at module scope is hoistable.
-  it("allows a deeply-nested fully-static structure at module scope", () => {
-    tester.run("digital-alchemy/no-service-module-scope-state", rule, {
+  describe("allows a deeply-nested fully-static structure at module scope", () => {
+    tester.run("no-service-module-scope-state", rule, {
       invalid: [],
       valid: [
         {
@@ -217,8 +217,8 @@ export function BazService({ logger }: TServiceParams) {}
   });
 
   // Impure / unresolvable calls must still be flagged even after adding hoistable-static support.
-  it("still flags Date.now() at module scope as derived state", () => {
-    tester.run("digital-alchemy/no-service-module-scope-state", rule, {
+  describe("still flags Date.now() at module scope as derived state", () => {
+    tester.run("no-service-module-scope-state", rule, {
       invalid: [
         {
           code: `const now = Date.now();`,
@@ -231,8 +231,8 @@ export function BazService({ logger }: TServiceParams) {}
   });
 
   // After unwrapping, `as const` / `satisfies` are transparent to hoistability.
-  it("does NOT flag a module-scope `as const`-wrapped object in a .service.mts file", () => {
-    tester.run("digital-alchemy/no-service-module-scope-state", rule, {
+  describe("does NOT flag a module-scope `as const`-wrapped object in a .service.mts file", () => {
+    tester.run("no-service-module-scope-state", rule, {
       invalid: [],
       valid: [
         {
@@ -249,8 +249,8 @@ export function BazService({ logger }: TServiceParams) {}
 
   // An empty object literal at module scope is a mutable accumulator, not a
   // static constant -- it must be flagged and moved into the factory closure.
-  it("flags an empty object literal at module scope in a .service.mts file", () => {
-    tester.run("digital-alchemy/no-service-module-scope-state", rule, {
+  describe("flags an empty object literal at module scope in a .service.mts file", () => {
+    tester.run("no-service-module-scope-state", rule, {
       invalid: [
         {
           code: `const X = {};`,

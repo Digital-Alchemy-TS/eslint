@@ -11,8 +11,8 @@ RuleTester.itOnly = it.only;
 const tester = new RuleTester();
 
 describe("no-empty-config-default", () => {
-  it("allows configuration entries with required: true", () => {
-    tester.run("digital-alchemy/no-empty-config-default", rule, {
+  describe("allows configuration entries with required: true", () => {
+    tester.run("no-empty-config-default", rule, {
       invalid: [],
       valid: [
         {
@@ -26,8 +26,8 @@ describe("no-empty-config-default", () => {
     });
   });
 
-  it("allows configuration entries with a meaningful default", () => {
-    tester.run("digital-alchemy/no-empty-config-default", rule, {
+  describe("allows configuration entries with a meaningful default", () => {
+    tester.run("no-empty-config-default", rule, {
       invalid: [],
       valid: [
         {
@@ -48,8 +48,8 @@ describe("no-empty-config-default", () => {
     });
   });
 
-  it("does not flag a switch default: statement", () => {
-    tester.run("digital-alchemy/no-empty-config-default", rule, {
+  describe("does not flag a switch default: statement", () => {
+    tester.run("no-empty-config-default", rule, {
       invalid: [],
       valid: [
         {
@@ -59,8 +59,8 @@ describe("no-empty-config-default", () => {
     });
   });
 
-  it("does not flag an unrelated object with default: ''", () => {
-    tester.run("digital-alchemy/no-empty-config-default", rule, {
+  describe("does not flag an unrelated object with default: ''", () => {
+    tester.run("no-empty-config-default", rule, {
       invalid: [],
       valid: [
         {
@@ -75,8 +75,8 @@ describe("no-empty-config-default", () => {
     });
   });
 
-  it("flags configuration entries with default: ''", () => {
-    tester.run("digital-alchemy/no-empty-config-default", rule, {
+  describe("flags configuration entries with default: ''", () => {
+    tester.run("no-empty-config-default", rule, {
       invalid: [
         {
           code: `CreateLibrary({
@@ -91,8 +91,8 @@ describe("no-empty-config-default", () => {
     });
   });
 
-  it("flags multiple empty-string defaults in one configuration block", () => {
-    tester.run("digital-alchemy/no-empty-config-default", rule, {
+  describe("flags multiple empty-string defaults in one configuration block", () => {
+    tester.run("no-empty-config-default", rule, {
       invalid: [
         {
           code: `CreateLibrary({
@@ -108,8 +108,8 @@ describe("no-empty-config-default", () => {
     });
   });
 
-  it("flags empty-string default even when other properties are fine", () => {
-    tester.run("digital-alchemy/no-empty-config-default", rule, {
+  describe("flags empty-string default even when other properties are fine", () => {
+    tester.run("no-empty-config-default", rule, {
       invalid: [
         {
           code: `CreateLibrary({
@@ -125,10 +125,10 @@ describe("no-empty-config-default", () => {
     });
   });
 
-  it("does not crash or report for boolean-typed config entry (PR_HISTORY_ENABLED pattern)", () => {
+  describe("does not crash or report for boolean-typed config entry (PR_HISTORY_ENABLED pattern)", () => {
     // Regression: is.empty(true) throws "Unsupported type boolean" from
     // @digital-alchemy/core — the guard must skip non-string literal defaults.
-    tester.run("digital-alchemy/no-empty-config-default", rule, {
+    tester.run("no-empty-config-default", rule, {
       invalid: [],
       valid: [
         {

@@ -11,8 +11,8 @@ RuleTester.itOnly = it.only;
 const tester = new RuleTester();
 
 describe("no-toplevel-config", () => {
-  it("allows config inside nested functions", () => {
-    tester.run("digital-alchemy/no-toplevel-config", rule, {
+  describe("allows config inside nested functions", () => {
+    tester.run("no-toplevel-config", rule, {
       invalid: [],
       valid: [
         {
@@ -44,8 +44,8 @@ describe("no-toplevel-config", () => {
     });
   });
 
-  it("catches config access at top level", () => {
-    tester.run("digital-alchemy/no-toplevel-config", rule, {
+  describe("catches config access at top level", () => {
+    tester.run("no-toplevel-config", rule, {
       invalid: [
         {
           code: `
@@ -76,8 +76,8 @@ describe("no-toplevel-config", () => {
     });
   });
 
-  it("allows concise-body arrow config accessors", () => {
-    tester.run("digital-alchemy/no-toplevel-config", rule, {
+  describe("allows concise-body arrow config accessors", () => {
+    tester.run("no-toplevel-config", rule, {
       invalid: [],
       valid: [
         {
@@ -107,8 +107,8 @@ describe("no-toplevel-config", () => {
     });
   });
 
-  it("ignores functions without config param", () => {
-    tester.run("digital-alchemy/no-toplevel-config", rule, {
+  describe("ignores functions without config param", () => {
+    tester.run("no-toplevel-config", rule, {
       invalid: [],
       valid: [
         {
@@ -129,8 +129,8 @@ describe("no-toplevel-config", () => {
     });
   });
 
-  it("handles arrow function services", () => {
-    tester.run("digital-alchemy/no-toplevel-config", rule, {
+  describe("handles arrow function services", () => {
+    tester.run("no-toplevel-config", rule, {
       invalid: [
         {
           code: `

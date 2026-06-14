@@ -15,8 +15,8 @@ function serviceFile(code: string, extra = {}) {
 }
 
 describe("no-unused-service-params", () => {
-  it("flags a destructured TServiceParams member that is never used", () => {
-    tester.run("digital-alchemy/no-unused-service-params", rule, {
+  describe("flags a destructured TServiceParams member that is never used", () => {
+    tester.run("no-unused-service-params", rule, {
       invalid: [
         {
           ...serviceFile(
@@ -30,8 +30,8 @@ describe("no-unused-service-params", () => {
     });
   });
 
-  it("does not flag when all members are used", () => {
-    tester.run("digital-alchemy/no-unused-service-params", rule, {
+  describe("does not flag when all members are used", () => {
+    tester.run("no-unused-service-params", rule, {
       invalid: [],
       valid: [
         serviceFile(
@@ -41,8 +41,8 @@ describe("no-unused-service-params", () => {
     });
   });
 
-  it("handles renamed bindings", () => {
-    tester.run("digital-alchemy/no-unused-service-params", rule, {
+  describe("handles renamed bindings", () => {
+    tester.run("no-unused-service-params", rule, {
       invalid: [
         {
           ...serviceFile(
@@ -56,8 +56,8 @@ describe("no-unused-service-params", () => {
     });
   });
 
-  it("reports but does NOT fix a lone member or a rest element", () => {
-    tester.run("digital-alchemy/no-unused-service-params", rule, {
+  describe("reports but does NOT fix a lone member or a rest element", () => {
+    tester.run("no-unused-service-params", rule, {
       invalid: [
         {
           // sole member — removing it would empty the pattern; report only
@@ -76,8 +76,8 @@ describe("no-unused-service-params", () => {
     });
   });
 
-  it("ignores functions whose param is not TServiceParams", () => {
-    tester.run("digital-alchemy/no-unused-service-params", rule, {
+  describe("ignores functions whose param is not TServiceParams", () => {
+    tester.run("no-unused-service-params", rule, {
       invalid: [],
       valid: [serviceFile(`function helper({ a, b }: SomeOther) { return a; }`)],
     });

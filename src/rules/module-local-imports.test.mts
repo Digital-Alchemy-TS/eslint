@@ -11,8 +11,8 @@ RuleTester.itOnly = it.only;
 const tester = new RuleTester();
 
 describe("module-local-imports", () => {
-  it("allows library imports from parent directories", () => {
-    tester.run("digital-alchemy/module-local-imports", rule, {
+  describe("allows library imports from parent directories", () => {
+    tester.run("module-local-imports", rule, {
       invalid: [],
       valid: [
         {
@@ -26,8 +26,8 @@ describe("module-local-imports", () => {
     });
   });
 
-  it("allows services from local subfolders", () => {
-    tester.run("digital-alchemy/module-local-imports", rule, {
+  describe("allows services from local subfolders", () => {
+    tester.run("module-local-imports", rule, {
       invalid: [],
       valid: [
         {
@@ -41,8 +41,8 @@ describe("module-local-imports", () => {
     });
   });
 
-  it("allows services from packages", () => {
-    tester.run("digital-alchemy/module-local-imports", rule, {
+  describe("allows services from packages", () => {
+    tester.run("module-local-imports", rule, {
       invalid: [],
       valid: [
         {
@@ -56,8 +56,8 @@ describe("module-local-imports", () => {
     });
   });
 
-  it("ignores non-module files", () => {
-    tester.run("digital-alchemy/module-local-imports", rule, {
+  describe("ignores non-module files", () => {
+    tester.run("module-local-imports", rule, {
       invalid: [],
       valid: [
         {
@@ -71,8 +71,8 @@ describe("module-local-imports", () => {
     });
   });
 
-  it("flags services imported from parent directories", () => {
-    tester.run("digital-alchemy/module-local-imports", rule, {
+  describe("flags services imported from parent directories", () => {
+    tester.run("module-local-imports", rule, {
       invalid: [
         {
           code: [

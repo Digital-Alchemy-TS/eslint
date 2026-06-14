@@ -23,8 +23,8 @@ function plainMts(code: string, extra = {}) {
 }
 
 describe("no-service-class", () => {
-  it("flags a class declaration in a service file", () => {
-    tester.run("digital-alchemy/no-service-class", rule, {
+  describe("flags a class declaration in a service file", () => {
+    tester.run("no-service-class", rule, {
       invalid: [
         {
           ...serviceFile(`class Foo {}`),
@@ -35,8 +35,8 @@ describe("no-service-class", () => {
     });
   });
 
-  it("flags a class expression in a service file", () => {
-    tester.run("digital-alchemy/no-service-class", rule, {
+  describe("flags a class expression in a service file", () => {
+    tester.run("no-service-class", rule, {
       invalid: [
         {
           ...serviceFile(`const Foo = class {};`),
@@ -47,22 +47,22 @@ describe("no-service-class", () => {
     });
   });
 
-  it("does not flag plain service functions", () => {
-    tester.run("digital-alchemy/no-service-class", rule, {
+  describe("does not flag plain service functions", () => {
+    tester.run("no-service-class", rule, {
       invalid: [],
       valid: [serviceFile(`function ServiceFoo() { return 1; }`)],
     });
   });
 
-  it("does not apply in .test.mts files", () => {
-    tester.run("digital-alchemy/no-service-class", rule, {
+  describe("does not apply in .test.mts files", () => {
+    tester.run("no-service-class", rule, {
       invalid: [],
       valid: [testFile(`class Mock {}`)],
     });
   });
 
-  it("does not apply in plain .mts files (not .service.mts)", () => {
-    tester.run("digital-alchemy/no-service-class", rule, {
+  describe("does not apply in plain .mts files (not .service.mts)", () => {
+    tester.run("no-service-class", rule, {
       invalid: [],
       valid: [plainMts(`class Helper {}`)],
     });

@@ -16,8 +16,8 @@ const SIDE_EFFECT_MSG_ID = "noConstructionSideEffects";
 const tester = new RuleTester();
 
 describe("no-construction-side-effects", () => {
-  it("valid: service with only variable declarations and return", () => {
-    tester.run("digital-alchemy/no-construction-side-effects", rule, {
+  describe("valid: service with only variable declarations and return", () => {
+    tester.run("no-construction-side-effects", rule, {
       invalid: [],
       valid: [
         {
@@ -34,8 +34,8 @@ export function MyService({ lifecycle }: TServiceParams) {
     });
   });
 
-  it("valid: lifecycle.onPreInit call at root is allowed", () => {
-    tester.run("digital-alchemy/no-construction-side-effects", rule, {
+  describe("valid: lifecycle.onPreInit call at root is allowed", () => {
+    tester.run("no-construction-side-effects", rule, {
       invalid: [],
       valid: [
         {
@@ -53,8 +53,8 @@ export function MyService({ lifecycle }: TServiceParams) {
     });
   });
 
-  it("valid: all lifecycle hooks are allowed at root", () => {
-    tester.run("digital-alchemy/no-construction-side-effects", rule, {
+  describe("valid: all lifecycle hooks are allowed at root", () => {
+    tester.run("no-construction-side-effects", rule, {
       invalid: [],
       valid: [
         {
@@ -72,8 +72,8 @@ export function MyService({ lifecycle }: TServiceParams) {
     });
   });
 
-  it("valid: function declaration inside service is allowed", () => {
-    tester.run("digital-alchemy/no-construction-side-effects", rule, {
+  describe("valid: function declaration inside service is allowed", () => {
+    tester.run("no-construction-side-effects", rule, {
       invalid: [],
       valid: [
         {
@@ -89,8 +89,8 @@ export function MyService({ lifecycle }: TServiceParams) {
     });
   });
 
-  it("valid: non-service file is ignored entirely", () => {
-    tester.run("digital-alchemy/no-construction-side-effects", rule, {
+  describe("valid: non-service file is ignored entirely", () => {
+    tester.run("no-construction-side-effects", rule, {
       invalid: [],
       valid: [
         {
@@ -105,8 +105,8 @@ export function MyService({ lifecycle }: TServiceParams) {
     });
   });
 
-  it("invalid: registry.register(...) at root -- motivating instance", () => {
-    tester.run("digital-alchemy/no-construction-side-effects", rule, {
+  describe("invalid: registry.register(...) at root -- motivating instance", () => {
+    tester.run("no-construction-side-effects", rule, {
       invalid: [
         {
           code: `
@@ -137,8 +137,8 @@ export function WorkflowSecretsSourceKind({ registry, logger }: TServiceParams) 
     });
   });
 
-  it("invalid: bare call expression at root (logger.debug)", () => {
-    tester.run("digital-alchemy/no-construction-side-effects", rule, {
+  describe("invalid: bare call expression at root (logger.debug)", () => {
+    tester.run("no-construction-side-effects", rule, {
       invalid: [
         {
           code: `
@@ -163,8 +163,8 @@ export function VocabSlotRegistration({ logger, framework_search }: TServicePara
     });
   });
 
-  it("invalid: if statement at root", () => {
-    tester.run("digital-alchemy/no-construction-side-effects", rule, {
+  describe("invalid: if statement at root", () => {
+    tester.run("no-construction-side-effects", rule, {
       invalid: [
         {
           code: `
@@ -187,8 +187,8 @@ export function MyService({ config }: TServiceParams) {
     });
   });
 
-  it("invalid: try/catch at root", () => {
-    tester.run("digital-alchemy/no-construction-side-effects", rule, {
+  describe("invalid: try/catch at root", () => {
+    tester.run("no-construction-side-effects", rule, {
       invalid: [
         {
           code: `
@@ -213,8 +213,8 @@ export function MyService({}: TServiceParams) {
     });
   });
 
-  it("invalid: other.method() call is not lifecycle and is flagged", () => {
-    tester.run("digital-alchemy/no-construction-side-effects", rule, {
+  describe("invalid: other.method() call is not lifecycle and is flagged", () => {
+    tester.run("no-construction-side-effects", rule, {
       invalid: [
         {
           code: `
@@ -237,8 +237,8 @@ export function MyService({ other }: TServiceParams) {
 
   // ─── Framework-wiring allowlist ───────────────────────────────────────────
 
-  it("valid: http.controller() at factory root is allowlisted", () => {
-    tester.run("digital-alchemy/no-construction-side-effects", rule, {
+  describe("valid: http.controller() at factory root is allowlisted", () => {
+    tester.run("no-construction-side-effects", rule, {
       invalid: [],
       valid: [
         {
@@ -266,8 +266,8 @@ export function ProfileController({ http, matrix }: TServiceParams) {
     });
   });
 
-  it("valid: scheduler.cron() at factory root is allowlisted", () => {
-    tester.run("digital-alchemy/no-construction-side-effects", rule, {
+  describe("valid: scheduler.cron() at factory root is allowlisted", () => {
+    tester.run("no-construction-side-effects", rule, {
       invalid: [],
       valid: [
         {
@@ -299,8 +299,8 @@ export function NothingPhoneService({ scheduler, lifecycle }: TServiceParams) {
     });
   });
 
-  it("invalid: http.otherMethod() is NOT in the allowlist and is flagged", () => {
-    tester.run("digital-alchemy/no-construction-side-effects", rule, {
+  describe("invalid: http.otherMethod() is NOT in the allowlist and is flagged", () => {
+    tester.run("no-construction-side-effects", rule, {
       invalid: [
         {
           code: `
@@ -317,8 +317,8 @@ export function MyService({ http }: TServiceParams) {
     });
   });
 
-  it("invalid: scheduler.otherMethod() is NOT in the allowlist and is flagged", () => {
-    tester.run("digital-alchemy/no-construction-side-effects", rule, {
+  describe("invalid: scheduler.otherMethod() is NOT in the allowlist and is flagged", () => {
+    tester.run("no-construction-side-effects", rule, {
       invalid: [
         {
           code: `
@@ -335,8 +335,8 @@ export function MyService({ scheduler }: TServiceParams) {
     });
   });
 
-  it("invalid: other.controller() is not http.controller and is flagged", () => {
-    tester.run("digital-alchemy/no-construction-side-effects", rule, {
+  describe("invalid: other.controller() is not http.controller and is flagged", () => {
+    tester.run("no-construction-side-effects", rule, {
       invalid: [
         {
           code: `
