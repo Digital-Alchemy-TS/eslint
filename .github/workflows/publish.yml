@@ -1,0 +1,90 @@
+name: 📨 Publish
+
+on:
+  release:
+    types: published
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  code_check:
+    name: 🔬 PR Checks
+    uses: ./.github/workflows/check.yml
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  publish:
+    name: 📮 to npm
+    runs-on: ubuntu-latest
+    needs: code_check
+
+    environment:
+      name: ${{ github.event.release.prerelease && 'npm-prerelease' || 'npm' }}
+      url: ${{ github.event.release.html_url }}
+
+    concurrency:
+      group: publish-${{ github.event.release.tag_name }}
+      cancel-in-progress: true
+
+    steps:
+      - name: 🧾 Checkout
+        uses: actions/checkout@v6
+
+      - name: 🔎 Get package version
+        id: package_version
+        env:
+          IS_PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          PACKAGE_VERSION=$(jq -r '.version' package.json)
+          echo "Package version: $PACKAGE_VERSION"
+
+          if [[ "$IS_PRERELEASE" == "true" ]]; then
+            # For prereleases, version must contain -beta
+            if [[ "$PACKAGE_VERSION" != *"-beta"* ]]; then
+              echo "❌ Prerelease failed: Package version '$PACKAGE_VERSION' must contain '-beta'"
+              exit 1
+            fi
+            echo "version=beta" >> $GITHUB_OUTPUT
+            echo "✅ Prerelease version check passed"
+          else
+            # For releases, version must NOT contain -beta
+            if [[ "$PACKAGE_VERSION" == *"-beta"* ]]; then
+              echo "❌ Release failed: Package version '$PACKAGE_VERSION' cannot contain '-beta'"
+              exit 1
+            fi
+            echo "version=latest" >> $GITHUB_OUTPUT
+            echo "✅ Release version check passed"
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org/'
+
+      - name: 📦 Create build
+        run: |
+          npm install -g promise-retry
+          npm install -g npm
+          corepack enable
+          yarn config set enableImmutableInstalls false
+          yarn
+          yarn build
+
+      - name: 📨 Publish to npm
+        env:
+          RELEASE_TAG: ${{ steps.package_version.outputs.version }}
+        run: npm publish --tag $RELEASE_TAG
+
+      - name: 📣 Send Discord Notification
+        if: ${{ !github.event.release.prerelease }}
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
+          nodetail: true
+          url: ${{ github.event.release.html_url }}
+          title: 🚀 **RELEASE** **@digital-alchemy/eslint ${{ github.event.release.tag_name }}** published
+          content: |
+            (${{ github.event.release.tag_name }}) **${{ github.event.release.name }}**
+            ${{ github.event.release.body }}

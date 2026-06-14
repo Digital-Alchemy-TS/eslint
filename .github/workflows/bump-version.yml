@@ -1,0 +1,70 @@
+name: 📬 Bump Package Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type'
+        required: true
+        default: 'prerelease'
+        type: choice
+        options:
+          - release
+          - prerelease
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.DA_REPO_TOKEN }}
+          fetch-depth: 0
+
+      - name: Get current version
+        id: current_version
+        run: echo "version=$(jq -r '.version' package.json)" >> $GITHUB_OUTPUT
+
+      - name: Bump version
+        id: bump_version
+        run: |
+          if [ "${{ inputs.release_type }}" = "release" ]; then
+            # Set to calver format (YY.MM.DD)
+            CALVER_VERSION=$(date +%y.%-m.%-d)
+            npm version $CALVER_VERSION --no-git-tag-version
+            echo "new_version=$CALVER_VERSION" >> $GITHUB_OUTPUT
+            echo "bump_type=calver" >> $GITHUB_OUTPUT
+          else
+            # Bump beta version using npm
+            npm version prerelease --preid beta --no-git-tag-version
+            NEW_VERSION=$(jq -r '.version' package.json)
+            echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+            echo "bump_type=beta" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create commit
+        env:
+          NEW_VERSION: ${{ steps.bump_version.outputs.new_version }}
+          BUMP_TYPE: ${{ steps.bump_version.outputs.bump_type }}
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add package.json
+          git commit -m "chore: bump version to $NEW_VERSION ($BUMP_TYPE)"
+
+      - name: Push changes
+        env:
+          REF: ${{ github.ref }}
+        run: git push origin HEAD:$REF
+
+      - name: Create and push tag
+        env:
+          NEW_VERSION: ${{ steps.bump_version.outputs.new_version }}
+        run: |
+          git tag -a "v$NEW_VERSION" -m "Release version $NEW_VERSION"
+          git push origin "v$NEW_VERSION"
