@@ -74,6 +74,8 @@ __metadata:
   dependencies:
     "@eslint/js": "npm:^9.0.0"
     "@types/node": "npm:^22.0.0"
+    "@typescript-eslint/parser": "npm:^8.0.0"
+    "@typescript-eslint/utils": "npm:^8.0.0"
     "@vitest/coverage-v8": "npm:^2.0.0"
     eslint: "npm:^9.0.0"
     eslint-doc-generator: "npm:^1.7.1"
@@ -83,6 +85,7 @@ __metadata:
     vitest: "npm:^2.0.0"
   peerDependencies:
     eslint: ">=9"
+    typescript: ">=5.5"
   languageName: unknown
   linkType: soft
 
@@ -715,7 +718,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@typescript-eslint/parser@npm:8.61.0":
+"@typescript-eslint/parser@npm:8.61.0, @typescript-eslint/parser@npm:^8.0.0":
   version: 8.61.0
   resolution: "@typescript-eslint/parser@npm:8.61.0"
   dependencies:
@@ -840,7 +843,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@typescript-eslint/utils@npm:8.61.0":
+"@typescript-eslint/utils@npm:8.61.0, @typescript-eslint/utils@npm:^8.0.0":
   version: 8.61.0
   resolution: "@typescript-eslint/utils@npm:8.61.0"
   dependencies:
