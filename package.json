@@ -1,0 +1,75 @@
+{
+  "type": "module",
+  "name": "@digital-alchemy/eslint",
+  "description": "Framework-correctness ESLint plugin for Digital-Alchemy TypeScript applications",
+  "repository": {
+    "url": "git+https://github.com/Digital-Alchemy-TS/eslint"
+  },
+  "version": "0.0.1",
+  "author": {
+    "url": "https://github.com/zoe-codez",
+    "name": "Zoe Codez"
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "homepage": "https://docs.digital-alchemy.app",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "rm -rf dist/; tsc -p tsconfig.lib.json",
+    "lint": "eslint src && echo \"✓ lint passed\"",
+    "lint:fix": "eslint src --fix && echo \"✓ lint:fix passed\"",
+    "type-check": "tsc --noEmit -p tsconfig.json && echo \"✓ type-check passed\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "update:docs": "eslint-doc-generator",
+    "check:docs": "eslint-doc-generator --check"
+  },
+  "bugs": {
+    "email": "bugs@digital-alchemy.app",
+    "url": "https://github.com/Digital-Alchemy-TS/eslint/issues/new/choose"
+  },
+  "keywords": [
+    "eslint",
+    "eslint-plugin",
+    "digital-alchemy",
+    "typescript",
+    "linting"
+  ],
+  "funding": [
+    {
+      "url": "https://github.com/sponsors/zoe-codez",
+      "type": "GitHub"
+    }
+  ],
+  "peerDependencies": {
+    "eslint": ">=9"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^2.0.0",
+    "eslint": "^9.0.0",
+    "eslint-doc-generator": "^1.7.1",
+    "prettier": "^3.3.0",
+    "typescript": "^5.5.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^2.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "license": "MIT",
+  "packageManager": "yarn@4.14.1"
+}
