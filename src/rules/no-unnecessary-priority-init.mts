@@ -13,24 +13,26 @@
  * information; no-op without it.
  */
 
-import type { TSESTree } from "@typescript-eslint/utils";
-import type { Rule } from "eslint";
+import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
 
 import { consumedKeys, getModuleIndex, moduleAtDecl, programFromContext } from "../lib/module-index.mts";
 import { moduleCallFacts } from "../lib/priority-init-ast.mts";
+import type { PluginDocs } from "../lib/types.mts";
 
-const rule: Rule.RuleModule = {
+type MessageIds = "unused";
+
+const rule: TSESLint.RuleModule<MessageIds, [], PluginDocs> = {
   create(context) {
     const acquired = programFromContext(context);
     if (!acquired) {
       return {};
     }
     const index = getModuleIndex(acquired.program, acquired.checker);
-    const filename = context.filename ?? context.getFilename();
+    const filename = context.filename ?? context.getFilename?.();
 
     return {
-      CallExpression(node) {
-        const facts = moduleCallFacts(node as unknown as TSESTree.CallExpression);
+      CallExpression(node: TSESTree.CallExpression) {
+        const facts = moduleCallFacts(node);
         const entry = facts && moduleAtDecl(index, filename, facts.constName);
         if (!facts || !entry) {
           return;
@@ -41,24 +43,22 @@ const rule: Rule.RuleModule = {
             context.report({
               data: { module: facts.name, service: element.key },
               messageId: "unused",
-              node: element.node as unknown as Rule.Node,
+              node: element.node,
             });
           }
         }
       },
     };
   },
+  defaultOptions: [],
   meta: {
     docs: {
       description:
         "Disallow a priorityInit entry that no sibling reads during construction (it orders nothing).",
       recommended: true,
-      // `requiresTypeChecking` is a typescript-eslint doc convention that ESLint's
-      // own `RulesMetaDocs` type does not declare; widen so eslint-doc-generator
-      // and consumers can read it without a type error.
       requiresTypeChecking: true,
       url: "https://github.com/Digital-Alchemy-TS/eslint/blob/main/docs/rules/no-unnecessary-priority-init.md",
-    } as Rule.RuleMetaData["docs"] & { requiresTypeChecking: boolean },
+    },
     messages: {
       unused: [
         "No sibling reads `{{service}}` during construction, so its priorityInit entry in ",

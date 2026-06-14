@@ -1,12 +1,14 @@
-import tsParser from "@typescript-eslint/parser";
-import { RuleTester } from "eslint";
-import { describe, it } from "vitest";
+import { RuleTester } from "@typescript-eslint/rule-tester";
+import { afterAll, describe, it } from "vitest";
 
 import rule from "./no-service-module-scope-state.mts";
 
-const tester = new RuleTester({
-  languageOptions: { parser: tsParser },
-});
+RuleTester.afterAll = afterAll;
+RuleTester.describe = describe;
+RuleTester.it = it;
+RuleTester.itOnly = it.only;
+
+const tester = new RuleTester();
 
 describe("no-service-module-scope-state", () => {
   it("allows static primitive consts at module scope in a .service.mts file", () => {

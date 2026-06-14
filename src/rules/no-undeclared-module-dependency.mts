@@ -18,15 +18,17 @@
  * unavailable.
  */
 
-import type { TSESTree } from "@typescript-eslint/utils";
-import type { Rule, SourceCode } from "eslint";
+import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
 
 import { getModuleIndex, programFromContext } from "../lib/module-index.mts";
+import type { PluginDocs } from "../lib/types.mts";
 import type { AstNodeLike } from "../lib/utils.mts";
 import { isAstNode } from "../lib/utils.mts";
 
+type MessageIds = "viaConfig" | "viaParam";
+
 /** The documentable name of a service-factory function node, or "" when none. */
-function factoryName(node: TSESTree.Node): string {
+function factoryName(node: TSESTree.FunctionLike): string {
   if (node.type === "FunctionDeclaration") {
     return node.id?.type === "Identifier" ? node.id.name : "";
   }
@@ -35,6 +37,17 @@ function factoryName(node: TSESTree.Node): string {
     return parent.id.name;
   }
   return "";
+}
+
+/**
+ * Type predicate that narrows an `AstNodeLike` to `AstNodeLike & TSESTree.MemberExpression`.
+ * The intersection is sound: both are object types, and the `type` discriminant confirms the
+ * runtime shape is a MemberExpression — no erasure, no `unknown` indirection.
+ */
+function isMemberExpression(
+  node: AstNodeLike,
+): node is AstNodeLike & TSESTree.MemberExpression {
+  return node.type === "MemberExpression";
 }
 
 /** Recursively visit every descendant AST node (skipping the `parent` backref). */
@@ -59,27 +72,27 @@ function walk(node: unknown, visit: (node: AstNodeLike) => void): void {
 }
 
 /** True when a function's first parameter is a `TServiceParams` object pattern. */
-function destructuresServiceParams(node: TSESTree.Node, sourceCode: SourceCode): boolean {
-  const params = (node as TSESTree.FunctionLike).params;
-  const [firstParam] = params;
+function destructuresServiceParams(
+  node: TSESTree.FunctionLike,
+  sourceCode: TSESLint.SourceCode,
+): boolean {
+  const [firstParam] = node.params;
   if (firstParam?.type !== "ObjectPattern" || !firstParam.typeAnnotation) {
     return false;
   }
-  return sourceCode
-    .getText(firstParam.typeAnnotation as unknown as Rule.Node)
-    .includes("TServiceParams");
+  return sourceCode.getText(firstParam.typeAnnotation).includes("TServiceParams");
 }
 
-const rule: Rule.RuleModule = {
+const rule: TSESLint.RuleModule<MessageIds, [], PluginDocs> = {
   create(context) {
     const acquired = programFromContext(context);
     if (!acquired) {
       return {};
     }
     const index = getModuleIndex(acquired.program, acquired.checker);
-    const sourceCode = context.sourceCode ?? context.getSourceCode();
+    const sourceCode = context.sourceCode;
 
-    function check(node: TSESTree.Node) {
+    function check(node: TSESTree.FunctionLike) {
       const ownerEntry = index.serviceOwners.get(factoryName(node));
       if (!ownerEntry) {
         return;
@@ -92,8 +105,11 @@ const rule: Rule.RuleModule = {
 
       // (1) modules destructured from the TServiceParams parameter.
       if (destructuresServiceParams(node, sourceCode)) {
-        const [firstParam] = (node as TSESTree.FunctionLike).params;
-        for (const property of (firstParam as TSESTree.ObjectPattern).properties) {
+        const [firstParam] = node.params;
+        if (firstParam?.type !== "ObjectPattern") {
+          return;
+        }
+        for (const property of firstParam.properties) {
           if (property.type !== "Property" || property.key.type !== "Identifier") {
             continue;
           }
@@ -103,39 +119,42 @@ const rule: Rule.RuleModule = {
             context.report({
               data: { dep, owner },
               messageId: "viaParam",
-              node: property as unknown as Rule.Node,
+              node: property,
             });
           }
         }
       }
 
       // (2) `config.<module>.<KEY>` reads anywhere in the factory body.
-      walk((node as TSESTree.FunctionLike).body, member => {
-        const expression = member as unknown as TSESTree.Node;
-        if (expression.type !== "MemberExpression" || expression.object.type !== "Identifier") {
+      walk(node.body, member => {
+        if (!isMemberExpression(member)) {
           return;
         }
-        if (expression.object.name !== "config" || expression.property.type !== "Identifier") {
+        if (member.object.type !== "Identifier" || member.object.name !== "config") {
           return;
         }
-        const dep = expression.property.name;
+        if (member.property.type !== "Identifier") {
+          return;
+        }
+        const dep = member.property.name;
         if (undeclared(dep) && !reported.has(`config:${dep}`)) {
           reported.add(`config:${dep}`);
           context.report({
             data: { dep, owner },
             messageId: "viaConfig",
-            node: expression as unknown as Rule.Node,
+            node: member,
           });
         }
       });
     }
 
     return {
-      ArrowFunctionExpression: node => check(node as unknown as TSESTree.Node),
-      FunctionDeclaration: node => check(node as unknown as TSESTree.Node),
-      FunctionExpression: node => check(node as unknown as TSESTree.Node),
+      ArrowFunctionExpression: check,
+      FunctionDeclaration: check,
+      FunctionExpression: check,
     };
   },
+  defaultOptions: [],
   meta: {
     docs: {
       description: [
@@ -143,12 +162,9 @@ const rule: Rule.RuleModule = {
         "its owner does not declare in depends/libraries.",
       ].join(""),
       recommended: true,
-      // `requiresTypeChecking` is a typescript-eslint doc convention that ESLint's
-      // own `RulesMetaDocs` type does not declare; widen so eslint-doc-generator
-      // and consumers can read it without a type error.
       requiresTypeChecking: true,
       url: "https://github.com/Digital-Alchemy-TS/eslint/blob/main/docs/rules/no-undeclared-module-dependency.md",
-    } as Rule.RuleMetaData["docs"] & { requiresTypeChecking: boolean },
+    },
     messages: {
       viaConfig: [
         "Service reads `config.{{dep}}.*`, but module `{{owner}}` does not declare `{{dep}}` ",

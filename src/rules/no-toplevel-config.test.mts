@@ -1,12 +1,14 @@
-import tsParser from "@typescript-eslint/parser";
-import { RuleTester } from "eslint";
-import { describe, it } from "vitest";
+import { RuleTester } from "@typescript-eslint/rule-tester";
+import { afterAll, describe, it } from "vitest";
 
 import rule from "./no-toplevel-config.mts";
 
-const tester = new RuleTester({
-  languageOptions: { parser: tsParser },
-});
+RuleTester.afterAll = afterAll;
+RuleTester.describe = describe;
+RuleTester.it = it;
+RuleTester.itOnly = it.only;
+
+const tester = new RuleTester();
 
 describe("no-toplevel-config", () => {
   it("allows config inside nested functions", () => {

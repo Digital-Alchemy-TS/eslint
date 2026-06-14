@@ -1,4 +1,4 @@
-import type { ESLint, Linter, Rule } from "eslint";
+import type { TSESLint } from "@typescript-eslint/utils";
 
 import moduleDeclarationMerge from "./rules/module-declaration-merge.mts";
 import moduleLocalImports from "./rules/module-local-imports.mts";
@@ -15,15 +15,7 @@ import noUnusedServiceParams from "./rules/no-unused-service-params.mts";
 import priorityInitOrder from "./rules/priority-init-order.mts";
 import requirePriorityInit from "./rules/require-priority-init.mts";
 
-type PluginConfig = Linter.Config & { name: string };
-
-type EslintPlugin = {
-  meta: { name: string; version: string };
-  rules: Record<string, Rule.RuleModule>;
-  configs: Record<string, PluginConfig>;
-};
-
-const plugin: EslintPlugin = {
+const plugin: TSESLint.FlatConfig.Plugin = {
   meta: { name: "@digital-alchemy/eslint", version: "0.0.1" },
   rules: {
     "module-declaration-merge": moduleDeclarationMerge,
@@ -44,9 +36,9 @@ const plugin: EslintPlugin = {
   configs: {},
 };
 
-plugin.configs["recommended"] = {
+plugin.configs!["recommended"] = {
   name: "digital-alchemy/recommended",
-  plugins: { "digital-alchemy": plugin as unknown as ESLint.Plugin },
+  plugins: { "digital-alchemy": plugin },
   rules: {
     "digital-alchemy/module-declaration-merge": "error",
     "digital-alchemy/module-local-imports": "error",

@@ -7,37 +7,40 @@
  * statement in the service body.
  */
 
-import type { Rule } from "eslint";
+import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
 
-const rule: Rule.RuleModule = {
+import type { PluginDocs } from "../lib/types.mts";
+
+type MessageIds = "toplevelConfig";
+
+// Offset from `.length` to the index of the final stack element.
+const LAST_INDEX_OFFSET = 1;
+// Nesting depth at which a node sits directly in the service-function body.
+const TOP_LEVEL_DEPTH = 0;
+
+function hasConfigParam(node: TSESTree.FunctionLike): boolean {
+  return node.params.some(
+    param =>
+      param.type === "ObjectPattern" &&
+      param.properties.some(
+        prop =>
+          prop.type === "Property" &&
+          prop.key.type === "Identifier" &&
+          prop.key.name === "config",
+      ),
+  );
+}
+
+function isConciseArrow(node: TSESTree.FunctionLike): boolean {
+  return node.type === "ArrowFunctionExpression" && node.body.type !== "BlockStatement";
+}
+
+const rule: TSESLint.RuleModule<MessageIds, [], PluginDocs> = {
   create(context) {
-    // Offset from `.length` to the index of the final stack element.
-    const LAST_INDEX_OFFSET = 1;
-    // Nesting depth at which a node sits directly in the service-function body.
-    const TOP_LEVEL_DEPTH = 0;
-    const serviceStack: { depth: number; node: unknown }[] = [];
+    const serviceStack: { depth: number; node: TSESTree.FunctionLike }[] = [];
 
-    function hasConfigParam(node: { params: unknown[] }): boolean {
-      return node.params.some(param => {
-        const p = param as { type: string; properties?: { type: string; key: { type: string; name?: string } }[] };
-        return (
-          p.type === "ObjectPattern" &&
-          p.properties?.some(
-            prop =>
-              prop.type === "Property" &&
-              prop.key.type === "Identifier" &&
-              prop.key.name === "config",
-          )
-        );
-      });
-    }
-
-    function isConciseArrow(node: { type: string; body: { type: string } }): boolean {
-      return node.type === "ArrowFunctionExpression" && node.body.type !== "BlockStatement";
-    }
-
-    function enterFunction(node: { type: string; params: unknown[]; body: { type: string } }) {
-      if (serviceStack?.length) {
+    function enterFunction(node: TSESTree.FunctionLike) {
+      if (serviceStack.length) {
         serviceStack[serviceStack.length - LAST_INDEX_OFFSET].depth++;
       }
       if (hasConfigParam(node) && !isConciseArrow(node)) {
@@ -45,12 +48,12 @@ const rule: Rule.RuleModule = {
       }
     }
 
-    function exitFunction(node: unknown) {
+    function exitFunction(node: TSESTree.FunctionLike) {
       const top = serviceStack[serviceStack.length - LAST_INDEX_OFFSET];
       if (top?.node === node) {
         serviceStack.pop();
       }
-      if (serviceStack?.length) {
+      if (serviceStack.length) {
         serviceStack[serviceStack.length - LAST_INDEX_OFFSET].depth--;
       }
     }
@@ -63,11 +66,11 @@ const rule: Rule.RuleModule = {
       FunctionExpression: enterFunction,
       "FunctionExpression:exit": exitFunction,
 
-      MemberExpression(node) {
-        if (!serviceStack?.length) {
+      MemberExpression(node: TSESTree.MemberExpression) {
+        if (!serviceStack.length) {
           return;
         }
-        if (node.object.type !== "Identifier" || (node.object as { name?: string }).name !== "config") {
+        if (node.object.type !== "Identifier" || node.object.name !== "config") {
           return;
         }
         const top = serviceStack[serviceStack.length - LAST_INDEX_OFFSET];
@@ -77,6 +80,7 @@ const rule: Rule.RuleModule = {
       },
     };
   },
+  defaultOptions: [],
   meta: {
     docs: {
       description: "Disallow top-level config access in DA service functions",
@@ -89,6 +93,7 @@ const rule: Rule.RuleModule = {
         "Move config access inside a nested function or callback.",
       ].join(" "),
     },
+    schema: [],
     type: "problem",
   },
 };

@@ -20,7 +20,11 @@
  * a filename guard inside `create()`.
  */
 
-import type { Rule, SourceCode } from "eslint";
+import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
+
+import type { PluginDocs } from "../lib/types.mts";
+
+type MessageIds = "unusedParam";
 
 const SERVICE_FILE_PATTERN = /\.service\.mts$/u;
 const TEST_FILE_PATTERN = /\.test\.mts$/u;
@@ -34,20 +38,23 @@ const TEST_FILE_PATTERN = /\.test\.mts$/u;
  */
 const NEIGHBOR_OFFSET = 1;
 
-function isServiceParamsPattern(param: unknown): boolean {
-  if ((param as { type?: string })?.type !== "ObjectPattern") {
+/**
+ * Type predicate narrowing a `TSESTree.Parameter` to `TSESTree.ObjectPattern`
+ * whose type annotation is `: TServiceParams`.
+ */
+function isServiceParamsPattern(param: TSESTree.Parameter): param is TSESTree.ObjectPattern {
+  if (param.type !== "ObjectPattern") {
     return false;
   }
-  const annotation = (param as { typeAnnotation?: { typeAnnotation?: { type?: string; typeName?: { type?: string; name?: string } } } })
-    .typeAnnotation?.typeAnnotation;
+  const annotation = param.typeAnnotation?.typeAnnotation;
   return (
     annotation?.type === "TSTypeReference" &&
-    annotation.typeName?.type === "Identifier" &&
+    annotation.typeName.type === "Identifier" &&
     annotation.typeName.name === "TServiceParams"
   );
 }
 
-const rule: Rule.RuleModule = {
+const rule: TSESLint.RuleModule<MessageIds, [], PluginDocs> = {
   create(context) {
     const filename = context.filename ?? context.getFilename?.() ?? "";
 
@@ -58,27 +65,23 @@ const rule: Rule.RuleModule = {
       return {};
     }
 
-    const sourceCode: SourceCode = context.sourceCode ?? (context as unknown as { getSourceCode(): SourceCode }).getSourceCode();
+    const sourceCode: TSESLint.SourceCode = context.sourceCode;
 
-    function check(node: Rule.Node) {
-      const nodeWithParams = node as unknown as { params: unknown[] };
-      const [param] = nodeWithParams.params;
+    function check(node: TSESTree.FunctionLike) {
+      const [param] = node.params;
       if (!isServiceParamsPattern(param)) {
         return;
       }
 
-      const paramNode = param as {
-        properties: ({ type: string; value?: { type?: string }; argument?: { type?: string }; range: [number, number] } & { [k: string]: unknown })[];
-      };
-
+      // `param` is now narrowed to TSESTree.ObjectPattern.
       // Map each binding identifier node declared by the ObjectPattern back to
       // its owning property, so we only judge TServiceParams members (not other
       // locals) and can target the property for removal.
-      const bindingToProp = new Map<unknown, unknown>();
-      for (const prop of paramNode.properties) {
-        if (prop.type === "Property" && prop.value?.type === "Identifier") {
+      const bindingToProp = new Map<TSESTree.Node, TSESTree.ObjectLiteralElement | TSESTree.RestElement>();
+      for (const prop of param.properties) {
+        if (prop.type === "Property" && prop.value.type === "Identifier") {
           bindingToProp.set(prop.value, prop);
-        } else if (prop.type === "RestElement" && (prop.argument as { type?: string })?.type === "Identifier") {
+        } else if (prop.type === "RestElement" && prop.argument.type === "Identifier") {
           bindingToProp.set(prop.argument, prop);
         }
       }
@@ -97,17 +100,19 @@ const rule: Rule.RuleModule = {
         // Only autofix a plain Property when the pattern keeps at least one other
         // member — removing a RestElement or emptying the pattern is left to the
         // author.
-        const hasAnotherMember = paramNode.properties.some(other => other !== prop);
-        const canFix = (prop as { type: string }).type === "Property" && hasAnotherMember;
+        const hasAnotherMember = param.properties.some(other => other !== prop);
+        const canFix = prop.type === "Property" && hasAnotherMember;
+
+        const reportNode = variable.identifiers[0] ?? param;
 
         context.report({
           data: { name: variable.name },
           messageId: "unusedParam",
-          node: (variable.identifiers[0] ?? param) as unknown as Rule.Node,
+          node: reportNode,
           ...(canFix
             ? {
-                fix(fixer: Rule.RuleFixer): Rule.Fix {
-                  const props = paramNode.properties;
+                fix(fixer: TSESLint.RuleFixer): TSESLint.RuleFix {
+                  const props = param.properties;
                   const idx = props.indexOf(prop as typeof props[number]);
                   const isLast = idx === props.length - NEIGHBOR_OFFSET;
                   if (!isLast) {
@@ -135,6 +140,7 @@ const rule: Rule.RuleModule = {
     };
   },
 
+  defaultOptions: [],
   meta: {
     docs: {
       description:

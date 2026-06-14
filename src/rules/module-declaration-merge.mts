@@ -10,7 +10,11 @@
  * `declare module` block must appear after the factory definition — not before.
  */
 
-import type { Rule } from "eslint";
+import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
+
+import type { PluginDocs } from "../lib/types.mts";
+
+type MessageIds = "declareBefore" | "missingDeclare" | "missingLoadedModules" | "nameMismatch";
 
 const FACTORY_NAMES = new Set(["CreateApplication", "CreateLibrary"]);
 
@@ -21,36 +25,8 @@ const FACTORY_NAMES = new Set(["CreateApplication", "CreateLibrary"]);
  */
 const LAST_INDEX_OFFSET = -1;
 
-type StmtShape = {
-  type: string;
-  declaration?: { type: string; id?: { name: string }; body?: { body: MemberShape[] } };
-};
-
-type MemberShape = {
-  type: string;
-  key?: { type: string; name: string };
-};
-
-type SpecShape = {
-  type: string;
-  imported?: { name: string };
-  local: { name: string };
-};
-
-type PropShape = {
-  type: string;
-  key: { type: string; name: string };
-  value: { type: string; value: unknown };
-};
-
-type ObjectArgShape = {
-  type: string;
-  properties: PropShape[];
-};
-
-// True when a `declare module` body statement is the `export interface
-// LoadedModules { ... }` declaration we care about.
-function isLoadedModulesExport(stmt: StmtShape): boolean {
+/** True when a `declare module` body statement is the `export interface LoadedModules { ... }` declaration we care about. */
+function isLoadedModulesExport(stmt: TSESTree.Statement): boolean {
   return (
     stmt.type === "ExportNamedDeclaration" &&
     stmt.declaration?.type === "TSInterfaceDeclaration" &&
@@ -58,22 +34,38 @@ function isLoadedModulesExport(stmt: StmtShape): boolean {
   );
 }
 
-// Collect the `LoadedModules` interface node (when present) and its declared
-// property-key names from a `declare module` body.
-function collectLoadedModules(moduleNode: Rule.Node): {
+type CollectResult = {
   loadedModulesKeys: string[];
-  loadedModulesNode: StmtShape["declaration"];
-} {
-  const n = moduleNode as unknown as { body?: { body?: StmtShape[] } };
-  const matches = (n.body?.body ?? []).filter(stmt => isLoadedModulesExport(stmt));
-  const lastMatch = matches.at(LAST_INDEX_OFFSET);
-  const loadedModulesNode = lastMatch?.declaration;
-  const loadedModulesKeys: string[] = [];
+  loadedModulesNode: TSESTree.TSInterfaceDeclaration | false;
+};
 
+/** Collect the `LoadedModules` interface node (when present) and its declared property-key names from a `declare module` body. */
+function collectLoadedModules(moduleNode: TSESTree.TSModuleDeclaration): CollectResult {
+  const body = moduleNode.body;
+  const stmts: TSESTree.Statement[] =
+    body?.type === "TSModuleBlock" ? body.body : [];
+
+  const matches = stmts.filter(isLoadedModulesExport);
+  const lastMatch = matches.at(LAST_INDEX_OFFSET);
+
+  let loadedModulesNode: TSESTree.TSInterfaceDeclaration | false = false;
+  if (
+    lastMatch?.type === "ExportNamedDeclaration" &&
+    lastMatch.declaration?.type === "TSInterfaceDeclaration"
+  ) {
+    loadedModulesNode = lastMatch.declaration;
+  }
+
+  const loadedModulesKeys: string[] = [];
   for (const stmt of matches) {
-    for (const member of stmt.declaration?.body?.body ?? []) {
-      if (member.type === "TSPropertySignature" && member.key?.type === "Identifier") {
-        loadedModulesKeys.push(member.key.name);
+    if (
+      stmt.type === "ExportNamedDeclaration" &&
+      stmt.declaration?.type === "TSInterfaceDeclaration"
+    ) {
+      for (const member of stmt.declaration.body.body) {
+        if (member.type === "TSPropertySignature" && member.key.type === "Identifier") {
+          loadedModulesKeys.push(member.key.name);
+        }
       }
     }
   }
@@ -81,48 +73,53 @@ function collectLoadedModules(moduleNode: Rule.Node): {
   return { loadedModulesKeys, loadedModulesNode };
 }
 
-// The literal module name passed as the factory's first-argument `name`
-// property, or undefined when absent.
-function moduleNameFromArgs(args: unknown[]): string {
-  const [firstArg] = args as ObjectArgShape[];
+/** The literal module name passed as the factory's first-argument `name` property, or "" when absent. */
+function moduleNameFromArgs(args: TSESTree.CallExpressionArgument[]): string {
+  const [firstArg] = args;
   if (firstArg?.type !== "ObjectExpression") {
     return "";
   }
   const nameProp = firstArg.properties.find(
-    p => p.type === "Property" && p.key.type === "Identifier" && p.key.name === "name",
+    p =>
+      p.type === "Property" &&
+      p.key.type === "Identifier" &&
+      p.key.name === "name",
   );
-  return nameProp?.value.type === "Literal" ? String(nameProp.value.value) : "";
+  if (nameProp?.type !== "Property") {
+    return "";
+  }
+  return nameProp.value.type === "Literal" ? String(nameProp.value.value) : "";
 }
 
-const rule: Rule.RuleModule = {
+const rule: TSESLint.RuleModule<MessageIds, [], PluginDocs> = {
   create(context) {
     const factoryImports = new Map<string, { factory: string; source: string }>();
     const moduleCreations: Array<{
       name: string;
       factoryInfo: { factory: string; source: string };
       moduleName: string;
-      node: Rule.Node;
+      node: TSESTree.VariableDeclarator;
     }> = [];
     const declareModules: Array<{
       source: string;
       line: number;
       loadedModulesKeys: string[];
-      loadedModulesNode: StmtShape["declaration"];
-      node: Rule.Node;
+      loadedModulesNode: TSESTree.TSInterfaceDeclaration | false;
+      node: TSESTree.TSModuleDeclaration;
     }> = [];
 
     return {
-      ImportDeclaration(node) {
-        const n = node as unknown as {
-          source?: { value: string };
-          specifiers: SpecShape[];
-        };
-        const source = n.source?.value;
+      ImportDeclaration(node: TSESTree.ImportDeclaration) {
+        const source = node.source?.value;
         if (!source) {
           return;
         }
-        for (const spec of n.specifiers) {
-          if (spec.type === "ImportSpecifier" && spec.imported && FACTORY_NAMES.has(spec.imported.name)) {
+        for (const spec of node.specifiers) {
+          if (
+            spec.type === "ImportSpecifier" &&
+            spec.imported.type === "Identifier" &&
+            FACTORY_NAMES.has(spec.imported.name)
+          ) {
             factoryImports.set(spec.local.name, { factory: spec.imported.name, source });
           }
         }
@@ -158,12 +155,12 @@ const rule: Rule.RuleModule = {
             context.report({
               data: { actual, expected: creation.moduleName },
               messageId: "nameMismatch",
-              node: matching.loadedModulesNode as unknown as Rule.Node,
+              node: matching.loadedModulesNode,
             });
           }
 
-          const creationLoc = (creationNode as unknown as { loc: { start: { line: number } } }).loc;
-          if (matching.line < creationLoc.start.line) {
+          const creationLine = creationNode.loc.start.line;
+          if (matching.line < creationLine) {
             context.report({
               data: { name },
               messageId: "declareBefore",
@@ -173,55 +170,44 @@ const rule: Rule.RuleModule = {
         }
       },
 
-      TSModuleDeclaration(node: Rule.Node) {
-        const n = node as unknown as {
-          declare?: boolean;
-          id?: { type: string; value: string };
-          loc: { start: { line: number } };
-        };
-        if (n.declare && n.id?.type === "Literal") {
+      TSModuleDeclaration(node: TSESTree.TSModuleDeclaration) {
+        if (node.declare && node.id.type === "Literal") {
           const { loadedModulesKeys, loadedModulesNode } = collectLoadedModules(node);
-
           declareModules.push({
-            line: n.loc.start.line,
+            line: node.loc.start.line,
             loadedModulesKeys,
             loadedModulesNode,
             node,
-            source: n.id.value,
+            source: String(node.id.value),
           });
         }
       },
 
-      VariableDeclarator(node) {
-        const n = node as unknown as {
-          init?: {
-            type: string;
-            callee: { type: string; name?: string };
-            arguments: unknown[];
-          };
-          id?: { name: string };
-        };
-        if (n.init?.type !== "CallExpression") {
+      VariableDeclarator(node: TSESTree.VariableDeclarator) {
+        if (node.init?.type !== "CallExpression") {
           return;
         }
-        const callee = n.init.callee;
+        const callee = node.init.callee;
         const calleeName = callee.type === "Identifier" ? callee.name : "";
         if (!calleeName || !factoryImports.has(calleeName)) {
           return;
         }
 
-        const moduleName = moduleNameFromArgs(n.init.arguments);
+        const moduleName = moduleNameFromArgs(node.init.arguments);
+
+        const idName =
+          node.id.type === "Identifier" ? node.id.name : "";
 
         moduleCreations.push({
           factoryInfo: factoryImports.get(calleeName)!,
           moduleName,
-          name: n.id?.name ?? "",
+          name: idName,
           node,
         });
       },
     };
   },
-
+  defaultOptions: [],
   meta: {
     docs: {
       description: [
@@ -246,6 +232,7 @@ const rule: Rule.RuleModule = {
         "Expected `{{ expected }}` but found `{{ actual }}`.",
       ].join(" "),
     },
+    schema: [],
     type: "problem",
   },
 };

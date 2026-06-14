@@ -11,29 +11,22 @@
  * static consts INSIDE the factory) and `service-preamble-limit`.
  */
 
-import type { Rule } from "eslint";
+import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
 
 import { isHoistableStatic } from "../lib/static-init.mts";
+import type { PluginDocs } from "../lib/types.mts";
 
-type NodeLike = {
-  type: string;
-  [key: string]: unknown;
-};
+type MessageIds = "noModuleScopeState";
 
-const rule: Rule.RuleModule = {
+const rule: TSESLint.RuleModule<MessageIds, [], PluginDocs> = {
   create(context) {
     const filename = context.filename ?? context.getFilename?.() ?? "";
     if (!filename.endsWith(".service.mts")) {
       return {};
     }
 
-    function checkDeclaration(node: Rule.Node): void {
-      const n = node as unknown as {
-        kind: string;
-        declarations: Array<{ init?: NodeLike }>;
-        parent?: { type: string; parent?: { type: string } };
-      };
-      const parent = n.parent;
+    function checkDeclaration(node: TSESTree.VariableDeclaration): void {
+      const parent = node.parent;
       const isTopLevel =
         parent?.type === "Program" ||
         (parent?.type === "ExportNamedDeclaration" && parent.parent?.type === "Program");
@@ -41,28 +34,21 @@ const rule: Rule.RuleModule = {
         return;
       }
 
-      const declarations = (node as unknown as { declarations: Rule.Node[] }).declarations;
-      const rawDeclarations = n.declarations;
+      const sourceCode: TSESLint.SourceCode = context.sourceCode;
 
-      for (let i = 0; i < rawDeclarations.length; i++) {
-        const declarator = rawDeclarations[i];
-        const declaratorNode = declarations[i];
+      for (const declarator of node.declarations) {
         // let/var: always mutable -- flag unconditionally
-        if (["let", "var"].includes(n.kind)) {
-          context.report({ messageId: "noModuleScopeState", node: declaratorNode });
+        if (node.kind === "let" || node.kind === "var") {
+          context.report({ messageId: "noModuleScopeState", node: declarator });
           continue;
         }
         // const: only flag when the init is NOT hoistable-static (i.e. derived/mutable).
-        // At module scope, boundaryNode is undefined — any resolved binding is hoistable.
+        // At module scope, boundaryNode is false — any resolved binding is hoistable.
+        const initNode = declarator.init;
         const isDerivedConst =
-          n.kind === "const" &&
-          !isHoistableStatic(
-            declarator.init as NodeLike,
-            context.sourceCode,
-            undefined as unknown as NodeLike,
-          );
+          node.kind === "const" && !!initNode && !isHoistableStatic(initNode, sourceCode, false);
         if (isDerivedConst) {
-          context.report({ messageId: "noModuleScopeState", node: declaratorNode });
+          context.report({ messageId: "noModuleScopeState", node: declarator });
         }
       }
     }
@@ -71,7 +57,7 @@ const rule: Rule.RuleModule = {
       VariableDeclaration: checkDeclaration,
     };
   },
-
+  defaultOptions: [],
   meta: {
     docs: {
       description:

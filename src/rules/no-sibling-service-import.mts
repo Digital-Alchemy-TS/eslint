@@ -1,17 +1,18 @@
-import type { Rule } from "eslint";
+import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
 
-const rule: Rule.RuleModule = {
+import type { PluginDocs } from "../lib/types.mts";
+
+type MessageIds = "noSiblingServiceImport";
+
+const rule: TSESLint.RuleModule<MessageIds, [], PluginDocs> = {
   create(context) {
     const filename = context.filename ?? context.getFilename();
     if (!filename.endsWith(".service.mts")) {
       return {};
     }
 
-    function checkSource(sourceNode: { value?: unknown } & Rule.Node) {
-      const source = sourceNode?.value;
-      if (typeof source !== "string") {
-        return;
-      }
+    function checkSource(sourceNode: TSESTree.StringLiteral) {
+      const source = sourceNode.value;
       if (source.endsWith(".service.mts") || source.endsWith(".service.mjs")) {
         context.report({
           data: { source },
@@ -22,21 +23,22 @@ const rule: Rule.RuleModule = {
     }
 
     return {
-      ExportAllDeclaration(node) {
+      ExportAllDeclaration(node: TSESTree.ExportAllDeclaration) {
         if (node.source) {
-          checkSource(node.source as unknown as { value?: unknown } & Rule.Node);
+          checkSource(node.source);
         }
       },
-      ExportNamedDeclaration(node) {
+      ExportNamedDeclaration(node: TSESTree.ExportNamedDeclaration) {
         if (node.source) {
-          checkSource(node.source as unknown as { value?: unknown } & Rule.Node);
+          checkSource(node.source);
         }
       },
-      ImportDeclaration(node) {
-        checkSource(node.source as unknown as { value?: unknown } & Rule.Node);
+      ImportDeclaration(node: TSESTree.ImportDeclaration) {
+        checkSource(node.source);
       },
     };
   },
+  defaultOptions: [],
   meta: {
     docs: {
       description: [

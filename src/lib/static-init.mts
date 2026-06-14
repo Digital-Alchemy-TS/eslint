@@ -1,27 +1,28 @@
-import type { Rule, Scope, SourceCode } from "eslint";
+import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
 
-import type { AstNodeLike } from "./utils.mts";
+/** Sentinel for "no factory boundary" — passed when checking module-scope hoistability. */
+type BoundaryNode = TSESTree.Node | false;
 
 /**
- * Untyped node alias. These walkers operate structurally on parsed AST nodes
- * via open-keyed property access (`node.expressions`, `node.callee`, etc.), so
- * they accept the open-keyed {@link AstNodeLike} shape rather than the closed
- * `ESTree.Node` union, which cannot be indexed by arbitrary keys.
+ * True when `node` is a TypeScript type-only wrapper: `as T`, `as const`, or `satisfies T`.
+ * These nodes wrap a value without changing it at runtime, so hoistability/staticness
+ * analysis must look through them.
  */
-type Node = AstNodeLike;
-
-/** AST node types that wrap a value in a type-only annotation (`as T`, `as const`, `satisfies T`). */
-const TYPE_WRAPPER_NODE_TYPES = ["TSAsExpression", "TSSatisfiesExpression"];
+function isTypeWrapper(
+  node: TSESTree.Node,
+): node is TSESTree.TSAsExpression | TSESTree.TSSatisfiesExpression {
+  return node.type === "TSAsExpression" || node.type === "TSSatisfiesExpression";
+}
 
 /**
  * Strip TypeScript type-only wrapper expressions (`as T`, `as const`,
  * `satisfies T`) to the underlying value node. A type assertion changes no
  * runtime value, so staticness/hoistability analysis must see through it.
  */
-function unwrapTypeWrappers(node: Node): Node {
-  let current = node;
-  while (current && TYPE_WRAPPER_NODE_TYPES.includes(current.type)) {
-    current = current.expression as Node;
+function unwrapTypeWrappers(node: TSESTree.Node): TSESTree.Node {
+  let current: TSESTree.Node = node;
+  while (isTypeWrapper(current)) {
+    current = current.expression;
   }
   return current;
 }
@@ -31,28 +32,25 @@ function unwrapTypeWrappers(node: Node): Node {
  * `Literal`, a `TemplateLiteral`, or a negated numeric literal (`-1`). Tagged
  * templates are excluded because the tag may run arbitrary code.
  */
-export function isPrimitiveLiteral(node: Node): boolean {
-  if (!node) {
-    return false;
-  }
+export function isPrimitiveLiteral(node: TSESTree.Node): boolean {
   if (node.type === "Literal") {
-    if (node.regex) {
+    if ("regex" in node && node.regex) {
       return true;
     }
     return ["string", "number", "boolean"].includes(typeof node.value);
   }
   if (node.type === "TemplateLiteral") {
     // Interpolated templates evaluate expressions at runtime — not static.
-    return !(node.expressions as Node[])?.length;
+    return !node.expressions?.length;
   }
   if (node.type === "TaggedTemplateExpression") {
     return false;
   }
-  const argument = node.argument as Node;
-  const isNegatedNumberLiteral =
-    node.type === "UnaryExpression" && node.operator === "-" && argument?.type === "Literal";
-  if (isNegatedNumberLiteral) {
-    return typeof argument.value === "number" && !Number.isNaN(argument.value);
+  if (node.type === "UnaryExpression" && node.operator === "-") {
+    const { argument } = node;
+    if (argument.type === "Literal") {
+      return typeof argument.value === "number" && !Number.isNaN(argument.value);
+    }
   }
   return false;
 }
@@ -61,25 +59,26 @@ export function isPrimitiveLiteral(node: Node): boolean {
  * True when `node` is a static collection literal: `new Set([...])` or
  * `new Map([...])` whose sole argument is an array literal of static values.
  */
-export function isStaticCollectionLiteral(node: Node): boolean {
-  if (node?.type !== "NewExpression") {
+export function isStaticCollectionLiteral(node: TSESTree.Node): boolean {
+  if (node.type !== "NewExpression") {
     return false;
   }
-  const callee = node.callee as Node;
+  const { callee, arguments: args } = node;
   if (callee.type !== "Identifier") {
     return false;
   }
-  if (!["Set", "Map"].includes(callee.name as string)) {
+  if (!["Set", "Map"].includes(callee.name)) {
     return false;
   }
-  const [arg, ...extraArgs] = node.arguments as Node[];
+  // Must have exactly one argument (the seed array)
+  const [firstArg, ...extraArgs] = args;
   if (extraArgs?.length) {
     return false;
   }
-  if (arg?.type !== "ArrayExpression") {
+  if (!firstArg || firstArg.type !== "ArrayExpression") {
     return false;
   }
-  return (arg.elements as Node[]).every(el => isStaticValue(el));
+  return firstArg.elements.every(el => el && isStaticValue(el));
 }
 
 /**
@@ -92,7 +91,7 @@ export function isStaticCollectionLiteral(node: Node): boolean {
  * values. A value that references an identifier or a call is NONE of these,
  * so it is correctly treated as non-static.
  */
-export function isStaticValue(node: Node): boolean {
+export function isStaticValue(node: TSESTree.Node): boolean {
   const n = unwrapTypeWrappers(node);
   return (
     isPrimitiveLiteral(n) ||
@@ -107,21 +106,21 @@ export function isStaticValue(node: Node): boolean {
  * True when `node` is a non-empty object literal whose every property is a
  * plain (non-computed, non-spread) key mapping to a static value.
  */
-export function isStaticObjectLiteral(node: Node): boolean {
-  if (node?.type !== "ObjectExpression") {
+export function isStaticObjectLiteral(node: TSESTree.Node): boolean {
+  if (node.type !== "ObjectExpression") {
     return false;
   }
-  if (!(node.properties as Node[])?.length) {
+  if (!node.properties?.length) {
     return false;
   }
-  return (node.properties as Node[]).every(prop => {
+  return node.properties.every(prop => {
     if (prop.type !== "Property") {
       return false;
     } // no spread elements
     if (prop.computed) {
       return false;
     } // no computed keys
-    return isStaticValue(prop.value as Node);
+    return isStaticValue(prop.value);
   });
 }
 
@@ -136,14 +135,14 @@ export function isStaticObjectLiteral(node: Node): boolean {
  * on identifiers in scope. (`isStaticValue` returns false for a missing
  * element, a SpreadElement, an Identifier, or a CallExpression.)
  */
-export function isStaticArrayLiteral(node: Node): boolean {
-  if (node?.type !== "ArrayExpression") {
+export function isStaticArrayLiteral(node: TSESTree.Node): boolean {
+  if (node.type !== "ArrayExpression") {
     return false;
   }
-  if (!(node.elements as Node[])?.length) {
+  if (!node.elements?.length) {
     return false;
   }
-  return (node.elements as Node[]).every(el => isStaticValue(el));
+  return node.elements.every(el => el && isStaticValue(el));
 }
 
 export const STATIC_BINARY_OPERATORS = new Set(["+", "-", "*", "/", "%", "**"]);
@@ -153,14 +152,14 @@ export const STATIC_BINARY_OPERATORS = new Set(["+", "-", "*", "/", "%", "**"]);
  * e.g. `1024 * 1024`, `60 * 60 * 1000`. These read as hard-coded magic
  * numbers with no dependency on anything in scope.
  */
-export function isStaticBinary(node: Node): boolean {
-  if (node?.type !== "BinaryExpression") {
+export function isStaticBinary(node: TSESTree.Node): boolean {
+  if (node.type !== "BinaryExpression") {
     return false;
   }
-  if (!STATIC_BINARY_OPERATORS.has(node.operator as string)) {
+  if (!STATIC_BINARY_OPERATORS.has(node.operator)) {
     return false;
   }
-  return isStaticValue(node.left as Node) && isStaticValue(node.right as Node);
+  return isStaticValue(node.left) && isStaticValue(node.right);
 }
 
 /**
@@ -186,30 +185,38 @@ const PURE_METHODS = new Set([
  * A `TemplateLiteral` is hoistable when it has no interpolations, or when every
  * interpolated expression is itself hoistable.
  */
-function isHoistableTemplate(node: Node, sourceCode: SourceCode, boundaryNode: Node): boolean {
-  const expressions = node.expressions as Node[];
-  if (!expressions?.length) {
+function isHoistableTemplate(
+  node: TSESTree.TemplateLiteral,
+  sourceCode: TSESLint.SourceCode,
+  boundaryNode: BoundaryNode,
+): boolean {
+  if (!node.expressions?.length) {
     return true;
   }
-  return expressions.every(expr => isHoistableStatic(expr, sourceCode, boundaryNode));
+  return node.expressions.every(expr => isHoistableStatic(expr, sourceCode, boundaryNode));
 }
 
 /**
  * A `CallExpression` is hoistable only as `hoistableReceiver.pureMethod(args)`
  * where the receiver and every argument are themselves hoistable.
  */
-function isHoistableCall(node: Node, sourceCode: SourceCode, boundaryNode: Node): boolean {
-  const callee = node.callee as Node;
-  const args = node.arguments as Node[];
+function isHoistableCall(
+  node: TSESTree.CallExpression,
+  sourceCode: TSESLint.SourceCode,
+  boundaryNode: BoundaryNode,
+): boolean {
+  const { callee, arguments: args } = node;
   if (callee.type !== "MemberExpression" || callee.computed) {
     return false;
   }
-  const prop = callee.property as Node;
-  const methodName = prop.type === "Identifier" ? (prop.name as string) : undefined;
-  if (!methodName || !PURE_METHODS.has(methodName)) {
+  if (callee.property.type !== "Identifier") {
     return false;
   }
-  if (!isHoistableStatic(callee.object as Node, sourceCode, boundaryNode)) {
+  const methodName = callee.property.name;
+  if (!PURE_METHODS.has(methodName)) {
+    return false;
+  }
+  if (!isHoistableStatic(callee.object, sourceCode, boundaryNode)) {
     return false;
   }
   return args.every(arg => isHoistableStatic(arg, sourceCode, boundaryNode));
@@ -220,13 +227,17 @@ function isHoistableCall(node: Node, sourceCode: SourceCode, boundaryNode: Node)
  * operator and both operands are hoistable (extends {@link isStaticBinary} to
  * allow identifier operands).
  */
-function isHoistableBinary(node: Node, sourceCode: SourceCode, boundaryNode: Node): boolean {
-  if (!STATIC_BINARY_OPERATORS.has(node.operator as string)) {
+function isHoistableBinary(
+  node: TSESTree.BinaryExpression,
+  sourceCode: TSESLint.SourceCode,
+  boundaryNode: BoundaryNode,
+): boolean {
+  if (!STATIC_BINARY_OPERATORS.has(node.operator)) {
     return false;
   }
   return (
-    isHoistableStatic(node.left as Node, sourceCode, boundaryNode) &&
-    isHoistableStatic(node.right as Node, sourceCode, boundaryNode)
+    isHoistableStatic(node.left, sourceCode, boundaryNode) &&
+    isHoistableStatic(node.right, sourceCode, boundaryNode)
   );
 }
 
@@ -234,8 +245,15 @@ function isHoistableBinary(node: Node, sourceCode: SourceCode, boundaryNode: Nod
  * True when `node` is safe to hoist out of a service factory: a static value,
  * or a pure expression (member access, call, binary op, template) over operands
  * that are themselves hoistable and resolve outside `boundaryNode`'s scope.
+ *
+ * Pass `false` for `boundaryNode` when there is no factory boundary (module scope):
+ * any resolved binding is then treated as hoistable.
  */
-export function isHoistableStatic(node: Node, sourceCode: SourceCode, boundaryNode: Node): boolean {
+export function isHoistableStatic(
+  node: TSESTree.Node,
+  sourceCode: TSESLint.SourceCode,
+  boundaryNode: BoundaryNode,
+): boolean {
   const n = unwrapTypeWrappers(node);
   if (!n) {
     return false;
@@ -267,9 +285,12 @@ export function isHoistableStatic(node: Node, sourceCode: SourceCode, boundaryNo
  * range — i.e. the binding is declared inside the factory boundary and is
  * therefore factory-local, not hoistable.
  */
-function isDefInsideBoundary(def: Scope.Definition, boundaryNode: Node): boolean {
-  const defRange = (def.node as { range: [number, number] }).range;
-  const bRange = boundaryNode.range as [number, number];
+function isDefInsideBoundary(
+  def: TSESLint.Scope.Definition,
+  boundaryNode: TSESTree.Node,
+): boolean {
+  const defRange = def.node.range;
+  const bRange = boundaryNode.range;
   return Boolean(defRange && bRange && defRange[0] >= bRange[0] && defRange[1] <= bRange[1]);
 }
 
@@ -278,7 +299,10 @@ function isDefInsideBoundary(def: Scope.Definition, boundaryNode: Node): boolean
  * not hoistable; a binding with no defs is a global/built-in and is hoistable;
  * otherwise it is hoistable unless one of its defs sits inside `boundaryNode`.
  */
-function isHoistableReference(ref: Scope.Reference, boundaryNode: Node): boolean {
+function isHoistableReference(
+  ref: TSESLint.Scope.Reference,
+  boundaryNode: BoundaryNode,
+): boolean {
   const variable = ref.resolved;
   if (!variable) {
     // Unresolved reference — conservatively treat as not hoistable.
@@ -299,16 +323,24 @@ function isHoistableReference(ref: Scope.Reference, boundaryNode: Node): boolean
  * Internal: determine whether an Identifier refers to a binding that is NOT
  * defined inside `boundaryNode` (module-scope, imported, global → hoistable).
  */
-function _isHoistableIdentifier(node: Node, sourceCode: SourceCode, boundaryNode: Node): boolean {
-  let scope = sourceCode.getScope(node as unknown as Rule.Node);
+function _isHoistableIdentifier(
+  node: TSESTree.Identifier,
+  sourceCode: TSESLint.SourceCode,
+  boundaryNode: BoundaryNode,
+): boolean {
+  let scope = sourceCode.getScope(node);
   while (scope) {
     for (const ref of scope.references) {
-      if ((ref.identifier as unknown as Node) !== node) {
+      // Identity comparison: ref.identifier IS the same node object at runtime.
+      if (ref.identifier !== node) {
         continue;
       }
       return isHoistableReference(ref, boundaryNode);
     }
-    scope = scope.upper as Scope.Scope;
+    if (!scope.upper) {
+      break;
+    }
+    scope = scope.upper;
   }
   return false;
 }

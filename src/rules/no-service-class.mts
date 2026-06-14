@@ -14,12 +14,16 @@
  * files — test doubles may define throwaway classes.
  */
 
-import type { Rule } from "eslint";
+import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
+
+import type { PluginDocs } from "../lib/types.mts";
+
+type MessageIds = "noClass";
 
 const SERVICE_FILE_PATTERN = /\.service\.mts$/u;
 const TEST_FILE_PATTERN = /\.test\.mts$/u;
 
-const rule: Rule.RuleModule = {
+const rule: TSESLint.RuleModule<MessageIds, [], PluginDocs> = {
   create(context) {
     const filename = context.filename ?? context.getFilename?.() ?? "";
 
@@ -30,13 +34,17 @@ const rule: Rule.RuleModule = {
       return {};
     }
 
+    function reportClass(node: TSESTree.ClassDeclaration | TSESTree.ClassExpression) {
+      context.report({ messageId: "noClass", node });
+    }
+
     return {
-      "ClassDeclaration, ClassExpression"(node: Rule.Node) {
-        context.report({ messageId: "noClass", node });
-      },
+      ClassDeclaration: reportClass,
+      ClassExpression: reportClass,
     };
   },
 
+  defaultOptions: [],
   meta: {
     docs: {
       description: "Disallow class definitions in service files.",

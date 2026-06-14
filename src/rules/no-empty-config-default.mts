@@ -1,7 +1,11 @@
-import type { Rule } from "eslint";
+import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
+
+import type { PluginDocs } from "../lib/types.mts";
+
+type MessageIds = "noEmptyDefault";
 
 /** Resolve a descriptor property's key name, or undefined for computed keys. */
-function descriptorKeyName(descProp: { key: { type: string; name?: string; value?: unknown } }): string {
+function descriptorKeyName(descProp: TSESTree.Property): string {
   if (descProp.key.type === "Identifier") {
     return descProp.key.name;
   }
@@ -12,7 +16,7 @@ function descriptorKeyName(descProp: { key: { type: string; name?: string; value
 }
 
 /** Whether a descriptor property is `default: ""`. */
-function isEmptyDefault(descProp: { type: string; key: { type: string; name?: string; value?: unknown }; value: { type: string; value?: unknown } }): boolean {
+function isEmptyDefault(descProp: TSESTree.ObjectLiteralElement): boolean {
   if (descProp.type !== "Property") {
     return false;
   }
@@ -32,26 +36,26 @@ function isEmptyDefault(descProp: { type: string; key: { type: string; name?: st
   return !descProp.value.value?.length;
 }
 
-const rule: Rule.RuleModule = {
+const rule: TSESLint.RuleModule<MessageIds, [], PluginDocs> = {
   create(context) {
     // Report any `default: ""` descriptor inside a single config-key block.
-    function checkConfigKey(configProp: { type: string; value: { type: string; properties: unknown[] } }) {
+    function checkConfigKey(configProp: TSESTree.ObjectLiteralElement) {
       if (configProp.type !== "Property" || configProp.value.type !== "ObjectExpression") {
         return;
       }
       for (const descProp of configProp.value.properties) {
-        if (isEmptyDefault(descProp as Parameters<typeof isEmptyDefault>[0])) {
-          context.report({ messageId: "noEmptyDefault", node: descProp as unknown as Rule.Node });
+        if (isEmptyDefault(descProp)) {
+          context.report({ messageId: "noEmptyDefault", node: descProp });
         }
       }
     }
 
     return {
-      Property(node) {
+      Property(node: TSESTree.Property) {
         // We are looking for a Property whose key is `configuration` and whose
         // value is an ObjectExpression — the configuration block inside
         // CreateLibrary / CreateApplication args.
-        if (node.key.type !== "Identifier" || (node.key as { name?: string }).name !== "configuration") {
+        if (node.key.type !== "Identifier" || node.key.name !== "configuration") {
           return;
         }
         if (node.value.type !== "ObjectExpression") {
@@ -59,12 +63,13 @@ const rule: Rule.RuleModule = {
         }
 
         // Each child property is a config key (e.g. TMUX_SOCKET_DIR: { ... }).
-        for (const configProp of (node.value as { properties: unknown[] }).properties) {
-          checkConfigKey(configProp as Parameters<typeof checkConfigKey>[0]);
+        for (const configProp of node.value.properties) {
+          checkConfigKey(configProp);
         }
       },
     };
   },
+  defaultOptions: [],
   meta: {
     docs: {
       description: "Disallow empty-string defaults in Digital Alchemy `configuration` entries",

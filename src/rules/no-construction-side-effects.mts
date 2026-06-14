@@ -38,9 +38,11 @@
  * NOT autofixable: relocation of side-effectful code is a semantic decision.
  */
 
-import type { Rule } from "eslint";
+import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
 
-const FUNCTION_EXPRESSION_TYPES = ["ArrowFunctionExpression", "FunctionExpression"];
+import type { PluginDocs } from "../lib/types.mts";
+
+type MessageIds = "noConstructionSideEffects";
 
 /**
  * Negative index passed to `Array.prototype.at` to select the last element.
@@ -50,51 +52,44 @@ const FUNCTION_EXPRESSION_TYPES = ["ArrowFunctionExpression", "FunctionExpressio
  */
 const LAST_ELEM = -1;
 
-type NodeLike = {
-  type: string;
-  [key: string]: unknown;
-};
-
 /** True when `param` is typed as `TServiceParams`. */
-function isTServiceParams(param: NodeLike): boolean {
+function isTServiceParams(param: TSESTree.Parameter): boolean {
   if (param.type !== "ObjectPattern") {
     return false;
   }
-  const annotation = (
-    param as unknown as {
-      typeAnnotation?: { typeAnnotation?: { type: string; typeName?: { type: string; name: string } } };
-    }
-  ).typeAnnotation?.typeAnnotation;
-  if (annotation?.type !== "TSTypeReference") {
+  const ann = param.typeAnnotation?.typeAnnotation;
+  if (ann?.type !== "TSTypeReference") {
     return false;
   }
-  return (
-    annotation.typeName?.type === "Identifier" && annotation.typeName.name === "TServiceParams"
-  );
+  return ann.typeName.type === "Identifier" && ann.typeName.name === "TServiceParams";
 }
 
 /** True when `node` is a function expression / arrow that accepts TServiceParams. */
-function isServiceFactory(node: NodeLike): boolean {
-  if (!FUNCTION_EXPRESSION_TYPES.includes(node.type)) {
+function isServiceFactory(
+  node: TSESTree.Node,
+): node is TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression {
+  if (node.type !== "ArrowFunctionExpression" && node.type !== "FunctionExpression") {
     return false;
   }
-  const params = (node as unknown as { params: NodeLike[] }).params;
-  return params.some(p => isTServiceParams(p));
+  return node.params.some(p => isTServiceParams(p));
 }
 
 /** True when `node` is a FunctionDeclaration with a TServiceParams param. */
-function isServiceFunctionDecl(node: NodeLike): boolean {
-  const params = (node as unknown as { params: NodeLike[] }).params;
-  return node.type === "FunctionDeclaration" && params.some(p => isTServiceParams(p));
+function isServiceFunctionDecl(node: TSESTree.Node): node is TSESTree.FunctionDeclaration {
+  if (node.type !== "FunctionDeclaration") {
+    return false;
+  }
+  return node.params.some(p => isTServiceParams(p));
 }
 
 /**
  * Scan a `VariableDeclaration` for a declarator whose initialiser is a service
- * factory function expression. Returns the first matching init node, or undefined.
+ * factory function expression. Returns the first matching init node, or false.
  */
-function factoryFromVarDecl(decl: NodeLike): NodeLike | false {
-  const declarations = (decl as unknown as { declarations: Array<{ init?: NodeLike }> }).declarations;
-  for (const d of declarations) {
+function factoryFromVarDecl(
+  decl: TSESTree.VariableDeclaration,
+): TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | false {
+  for (const d of decl.declarations) {
     if (d.init && isServiceFactory(d.init)) {
       return d.init;
     }
@@ -106,22 +101,32 @@ function factoryFromVarDecl(decl: NodeLike): NodeLike | false {
  * Resolve the factory function node from an `ExportNamedDeclaration`.
  * Handles both function-declaration exports and const-arrow exports.
  */
-function factoryFromExport(node: NodeLike): NodeLike | false {
-  const declaration = (node as unknown as { declaration?: NodeLike }).declaration;
-  if (declaration?.type === "FunctionDeclaration") {
+function factoryFromExport(
+  node: TSESTree.ExportNamedDeclaration,
+): TSESTree.FunctionDeclaration | TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression | false {
+  const { declaration } = node;
+  if (!declaration) {
+    return false;
+  }
+  if (declaration.type === "FunctionDeclaration") {
     return isServiceFunctionDecl(declaration) ? declaration : false;
   }
-  if (declaration?.type === "VariableDeclaration") {
+  if (declaration.type === "VariableDeclaration") {
     return factoryFromVarDecl(declaration);
   }
   return false;
 }
 
+type ServiceFactory =
+  | TSESTree.FunctionDeclaration
+  | TSESTree.ArrowFunctionExpression
+  | TSESTree.FunctionExpression;
+
 /**
  * Resolve the factory function node from a top-level statement.
  * Returns the factory node or false when none is found.
  */
-function extractServiceFactory(node: NodeLike): NodeLike | false {
+function extractServiceFactory(node: TSESTree.Statement): ServiceFactory | false {
   if (node.type === "ExportNamedDeclaration") {
     return factoryFromExport(node);
   }
@@ -139,16 +144,16 @@ function extractServiceFactory(node: NodeLike): NodeLike | false {
  * callee is a non-computed MemberExpression whose object is an Identifier
  * named `lifecycle`.
  */
-function isLifecycleCall(node: NodeLike): boolean {
+function isLifecycleCall(node: TSESTree.Expression): boolean {
   if (node.type !== "CallExpression") {
     return false;
   }
-  const callee = (node as unknown as { callee: NodeLike }).callee;
+  const { callee } = node;
   return (
     callee.type === "MemberExpression" &&
-    !(callee as unknown as { computed: boolean }).computed &&
-    (callee as unknown as { object: NodeLike }).object.type === "Identifier" &&
-    ((callee as unknown as { object: { name: string } }).object.name === "lifecycle")
+    !callee.computed &&
+    callee.object.type === "Identifier" &&
+    callee.object.name === "lifecycle"
   );
 }
 
@@ -187,21 +192,19 @@ const FRAMEWORK_WIRING_CALLS: readonly FrameworkWiringEntry[] = [
  * Return true when `node` is a framework wiring call allowlisted for use at
  * factory root (see `FRAMEWORK_WIRING_CALLS`).
  */
-function isFrameworkWiringCall(node: NodeLike): boolean {
+function isFrameworkWiringCall(node: TSESTree.Expression): boolean {
   if (node.type !== "CallExpression") {
     return false;
   }
-  const callee = (node as unknown as { callee: NodeLike }).callee;
-  const isStaticMemberCall =
-    callee.type === "MemberExpression" &&
-    !(callee as unknown as { computed: boolean }).computed &&
-    (callee as unknown as { object: NodeLike }).object.type === "Identifier" &&
-    (callee as unknown as { property: NodeLike }).property.type === "Identifier";
-  if (!isStaticMemberCall) {
+  const { callee } = node;
+  if (callee.type !== "MemberExpression" || callee.computed) {
     return false;
   }
-  const obj = (callee as unknown as { object: { name: string } }).object.name;
-  const prop = (callee as unknown as { property: { name: string } }).property.name;
+  if (callee.object.type !== "Identifier" || callee.property.type !== "Identifier") {
+    return false;
+  }
+  const obj = callee.object.name;
+  const prop = callee.property.name;
   return FRAMEWORK_WIRING_CALLS.some(entry => obj === entry.object && prop === entry.property);
 }
 
@@ -215,7 +218,7 @@ function isFrameworkWiringCall(node: NodeLike): boolean {
  *   - ExpressionStatement whose expression is a lifecycle.* call
  *   - ExpressionStatement whose expression is an allowlisted framework wiring call
  */
-function isAllowedRootStatement(node: NodeLike): boolean {
+function isAllowedRootStatement(node: TSESTree.Statement): boolean {
   switch (node.type) {
     case "VariableDeclaration":
     case "FunctionDeclaration": {
@@ -225,8 +228,7 @@ function isAllowedRootStatement(node: NodeLike): boolean {
       return true;
     }
     case "ExpressionStatement": {
-      const expr = (node as unknown as { expression: NodeLike }).expression;
-      return isLifecycleCall(expr) || isFrameworkWiringCall(expr);
+      return isLifecycleCall(node.expression) || isFrameworkWiringCall(node.expression);
     }
     default: {
       return false;
@@ -237,15 +239,15 @@ function isAllowedRootStatement(node: NodeLike): boolean {
 /**
  * Get the body statements of a factory function node.
  */
-function getBodyStatements(factoryNode: NodeLike): readonly NodeLike[] {
-  const body = (factoryNode as unknown as { body?: NodeLike }).body;
-  if (body?.type !== "BlockStatement") {
+function getBodyStatements(factoryNode: ServiceFactory): readonly TSESTree.Statement[] {
+  const { body } = factoryNode;
+  if (body.type !== "BlockStatement") {
     return [];
   }
-  return (body as unknown as { body: NodeLike[] }).body;
+  return body.body;
 }
 
-const rule: Rule.RuleModule = {
+const rule: TSESLint.RuleModule<MessageIds, [], PluginDocs> = {
   create(context) {
     const filename = context.filename ?? context.getFilename?.() ?? "";
     if (!filename.endsWith(".service.mts")) {
@@ -253,11 +255,10 @@ const rule: Rule.RuleModule = {
     }
 
     return {
-      "Program:exit"(program) {
-        const factoryNodes: NodeLike[] = [];
+      "Program:exit"(program: TSESTree.Program) {
+        const factoryNodes: ServiceFactory[] = [];
 
-        const body = (program as unknown as { body: NodeLike[] }).body;
-        for (const stmt of body) {
+        for (const stmt of program.body) {
           const factory = extractServiceFactory(stmt);
           if (factory) {
             factoryNodes.push(factory);
@@ -273,14 +274,14 @@ const rule: Rule.RuleModule = {
           if (!isAllowedRootStatement(stmt)) {
             context.report({
               messageId: "noConstructionSideEffects",
-              node: stmt as unknown as Rule.Node,
+              node: stmt,
             });
           }
         }
       },
     };
   },
-
+  defaultOptions: [],
   meta: {
     docs: {
       description: [

@@ -2,12 +2,16 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import tsParser from "@typescript-eslint/parser";
-import { RuleTester } from "eslint";
-import { afterEach, describe, it } from "vitest";
+import { RuleTester } from "@typescript-eslint/rule-tester";
+import { afterAll, afterEach, describe, it } from "vitest";
 
 import { _resetModuleIndexForTests } from "../lib/module-index.mts";
 import rule from "./no-unnecessary-priority-init.mts";
+
+RuleTester.afterAll = afterAll;
+RuleTester.describe = describe;
+RuleTester.it = it;
+RuleTester.itOnly = it.only;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_DIR = path.resolve(__dirname, "../../tests/fixtures/priority-init");
@@ -19,7 +23,6 @@ function fixture(name: string) {
 
 const tester = new RuleTester({
   languageOptions: {
-    parser: tsParser,
     parserOptions: { project: "./tsconfig.json", tsconfigRootDir: FIXTURE_DIR },
   },
 });

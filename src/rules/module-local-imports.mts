@@ -13,21 +13,22 @@
  * the `services` object and resolve to a parent-directory import are reported.
  */
 
-import type { TSESTree } from "@typescript-eslint/utils";
-import type { Rule } from "eslint";
+import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
 
-import type { AstNodeLike } from "../lib/utils.mts";
+import type { PluginDocs } from "../lib/types.mts";
+
+type MessageIds = "noParentService";
 
 // The `VariableDeclaration` that a top-level statement actually declares,
 // unwrapping an `export` wrapper, or undefined when the statement is neither.
-function declaredVariable(stmt: AstNodeLike): TSESTree.VariableDeclaration {
-  if (!["ExportNamedDeclaration", "VariableDeclaration"].includes(stmt.type)) {
-    return undefined;
+function declaredVariable(stmt: TSESTree.Statement): TSESTree.VariableDeclaration {
+  if (stmt.type === "VariableDeclaration") {
+    return stmt;
   }
-  const node = stmt as unknown as TSESTree.Node;
-  const decl =
-    node.type === "ExportNamedDeclaration" ? node.declaration : node;
-  return decl?.type === "VariableDeclaration" ? decl : undefined;
+  if (stmt.type === "ExportNamedDeclaration" && stmt.declaration?.type === "VariableDeclaration") {
+    return stmt.declaration;
+  }
+  return undefined;
 }
 
 // The `services: { ... }` object passed as the first argument of an init call
@@ -53,9 +54,9 @@ interface ParentImport {
   readonly source: string;
 }
 
-const rule: Rule.RuleModule = {
+const rule: TSESLint.RuleModule<MessageIds, [], PluginDocs> = {
   create(context) {
-    const filename = context.filename ?? context.getFilename();
+    const filename = context.filename ?? context.getFilename?.();
     if (!filename.endsWith(".module.mts")) {
       return {};
     }
@@ -77,37 +78,34 @@ const rule: Rule.RuleModule = {
           context.report({
             data: { name, source: imported.source },
             messageId: "noParentService",
-            node: imported.node as unknown as Rule.Node,
+            node: imported.node,
           });
         }
       }
     }
 
     return {
-      ImportDeclaration(node) {
+      ImportDeclaration(node: TSESTree.ImportDeclaration) {
         const source = node.source?.value;
         if (typeof source !== "string" || !source.startsWith("..")) {
           return;
         }
         for (const spec of node.specifiers) {
           if (spec.local?.name) {
-            parentImports.set(spec.local.name, {
-              node: node as unknown as TSESTree.ImportDeclaration,
-              source,
-            });
+            parentImports.set(spec.local.name, { node, source });
           }
         }
       },
 
       "Program:exit"() {
-        const sourceCode = context.sourceCode ?? context.getSourceCode();
-        const scope = sourceCode.scopeManager.globalScope;
+        const sourceCode: TSESLint.SourceCode = context.sourceCode;
+        const scope = sourceCode.scopeManager?.globalScope;
         if (!scope) {
           return;
         }
 
         for (const stmt of sourceCode.ast.body) {
-          const decl = declaredVariable(stmt as unknown as AstNodeLike);
+          const decl = declaredVariable(stmt);
           if (!decl) {
             continue;
           }
@@ -121,6 +119,7 @@ const rule: Rule.RuleModule = {
       },
     };
   },
+  defaultOptions: [],
   meta: {
     docs: {
       description:
@@ -134,6 +133,7 @@ const rule: Rule.RuleModule = {
         '("{{ source }}"). Services must come from a subfolder.',
       ].join(" "),
     },
+    schema: [],
     type: "problem",
   },
 };

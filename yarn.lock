@@ -75,6 +75,7 @@ __metadata:
     "@eslint/js": "npm:^9.0.0"
     "@types/node": "npm:^22.0.0"
     "@typescript-eslint/parser": "npm:^8.0.0"
+    "@typescript-eslint/rule-tester": "npm:^8.0.0"
     "@typescript-eslint/utils": "npm:^8.0.0"
     "@vitest/coverage-v8": "npm:^2.0.0"
     eslint: "npm:^9.0.0"
@@ -747,6 +748,24 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@typescript-eslint/rule-tester@npm:^8.0.0":
+  version: 8.61.0
+  resolution: "@typescript-eslint/rule-tester@npm:8.61.0"
+  dependencies:
+    "@typescript-eslint/parser": "npm:8.61.0"
+    "@typescript-eslint/typescript-estree": "npm:8.61.0"
+    "@typescript-eslint/utils": "npm:8.61.0"
+    ajv: "npm:^6.12.6"
+    json-stable-stringify-without-jsonify: "npm:^1.0.1"
+    lodash.merge: "npm:4.6.2"
+    semver: "npm:^7.7.3"
+  peerDependencies:
+    eslint: ^8.57.0 || ^9.0.0 || ^10.0.0
+    typescript: ">=4.8.4 <6.1.0"
+  checksum: 10/80f09106d3898b5d188b1176de6fb3f802d7e6e394eda8fa5fc9b48f281ffc0a9ee581ffa5e2bdfc218ee1afc935550c8a6db405a81b046f6d56cd46cfbd190c
+  languageName: node
+  linkType: hard
+
 "@typescript-eslint/scope-manager@npm:5.62.0":
   version: 5.62.0
   resolution: "@typescript-eslint/scope-manager@npm:5.62.0"
@@ -1028,7 +1047,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ajv@npm:^6.14.0":
+"ajv@npm:^6.12.6, ajv@npm:^6.14.0":
   version: 6.15.0
   resolution: "ajv@npm:6.15.0"
   dependencies:
@@ -2106,7 +2125,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lodash.merge@npm:^4.6.2":
+"lodash.merge@npm:4.6.2, lodash.merge@npm:^4.6.2":
   version: 4.6.2
   resolution: "lodash.merge@npm:4.6.2"
   checksum: 10/d0ea2dd0097e6201be083865d50c3fb54fbfbdb247d9cc5950e086c991f448b7ab0cdab0d57eacccb43473d3f2acd21e134db39f22dac2d6c9ba6bf26978e3d6

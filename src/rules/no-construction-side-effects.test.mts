@@ -1,20 +1,19 @@
-import tsParser from "@typescript-eslint/parser";
-import { RuleTester } from "eslint";
-import { describe, it } from "vitest";
+import { RuleTester } from "@typescript-eslint/rule-tester";
+import { afterAll, describe, it } from "vitest";
 
 import rule from "./no-construction-side-effects.mts";
+
+RuleTester.afterAll = afterAll;
+RuleTester.describe = describe;
+RuleTester.it = it;
+RuleTester.itOnly = it.only;
 
 // The rule is filename-gated: only active in *.service.mts files.
 const SERVICE_FILE = "src/example.service.mts";
 
-const SIDE_EFFECT_MSG = [
-  "Construction is for wiring definitions; side effects belong in lifecycle hooks",
-  "-- `lifecycle.onPreInit` is early enough.",
-].join(" ");
+const SIDE_EFFECT_MSG_ID = "noConstructionSideEffects";
 
-const tester = new RuleTester({
-  languageOptions: { parser: tsParser },
-});
+const tester = new RuleTester();
 
 describe("no-construction-side-effects", () => {
   it("valid: service with only variable declarations and return", () => {
@@ -122,13 +121,13 @@ export function WorkflowSecretsSourceKind({ registry, logger }: TServiceParams) 
           `.trim(),
           errors: [
             {
-              message: SIDE_EFFECT_MSG,
+              messageId: SIDE_EFFECT_MSG_ID,
             },
             {
-              message: SIDE_EFFECT_MSG,
+              messageId: SIDE_EFFECT_MSG_ID,
             },
             {
-              message: SIDE_EFFECT_MSG,
+              messageId: SIDE_EFFECT_MSG_ID,
             },
           ],
           filename: SERVICE_FILE,
@@ -151,10 +150,10 @@ export function VocabSlotRegistration({ logger, framework_search }: TServicePara
           `.trim(),
           errors: [
             {
-              message: SIDE_EFFECT_MSG,
+              messageId: SIDE_EFFECT_MSG_ID,
             },
             {
-              message: SIDE_EFFECT_MSG,
+              messageId: SIDE_EFFECT_MSG_ID,
             },
           ],
           filename: SERVICE_FILE,
@@ -178,7 +177,7 @@ export function MyService({ config }: TServiceParams) {
           `.trim(),
           errors: [
             {
-              message: SIDE_EFFECT_MSG,
+              messageId: SIDE_EFFECT_MSG_ID,
             },
           ],
           filename: SERVICE_FILE,
@@ -204,7 +203,7 @@ export function MyService({}: TServiceParams) {
           `.trim(),
           errors: [
             {
-              message: SIDE_EFFECT_MSG,
+              messageId: SIDE_EFFECT_MSG_ID,
             },
           ],
           filename: SERVICE_FILE,
@@ -226,7 +225,7 @@ export function MyService({ other }: TServiceParams) {
           `.trim(),
           errors: [
             {
-              message: SIDE_EFFECT_MSG,
+              messageId: SIDE_EFFECT_MSG_ID,
             },
           ],
           filename: SERVICE_FILE,
@@ -310,7 +309,7 @@ export function MyService({ http }: TServiceParams) {
   return {};
 }
           `.trim(),
-          errors: [{ message: SIDE_EFFECT_MSG }],
+          errors: [{ messageId: SIDE_EFFECT_MSG_ID }],
           filename: SERVICE_FILE,
         },
       ],
@@ -328,7 +327,7 @@ export function MyService({ scheduler }: TServiceParams) {
   return {};
 }
           `.trim(),
-          errors: [{ message: SIDE_EFFECT_MSG }],
+          errors: [{ messageId: SIDE_EFFECT_MSG_ID }],
           filename: SERVICE_FILE,
         },
       ],
@@ -346,7 +345,7 @@ export function MyService({ router }: TServiceParams) {
   return {};
 }
           `.trim(),
-          errors: [{ message: SIDE_EFFECT_MSG }],
+          errors: [{ messageId: SIDE_EFFECT_MSG_ID }],
           filename: SERVICE_FILE,
         },
       ],

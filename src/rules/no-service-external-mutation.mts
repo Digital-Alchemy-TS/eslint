@@ -9,9 +9,12 @@
  * The fix is simple: copy the external array locally first and mutate the copy.
  */
 
-import type { Rule } from "eslint";
+import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
 
 import { isHoistableStatic } from "../lib/static-init.mts";
+import type { PluginDocs } from "../lib/types.mts";
+
+type MessageIds = "noExternalMutation";
 
 /**
  * Offset subtracted from `array.length` to index the final (top-of-stack)
@@ -39,43 +42,36 @@ const MUTATING_METHODS = new Set([
   "copyWithin",
 ]);
 
-type NodeLike = {
-  type: string;
-  [key: string]: unknown;
-};
-
-function isTServiceParams(param: NodeLike): boolean {
+function isTServiceParams(param: TSESTree.Parameter): boolean {
   if (param.type !== "ObjectPattern") {
     return false;
   }
-  const annotation = (
-    param as unknown as {
-      typeAnnotation?: { typeAnnotation?: { type: string; typeName?: { type: string; name: string } } };
-    }
-  ).typeAnnotation?.typeAnnotation;
-  if (annotation?.type !== "TSTypeReference") {
+  const ann = param.typeAnnotation?.typeAnnotation;
+  if (ann?.type !== "TSTypeReference") {
     return false;
   }
-  return (
-    annotation.typeName?.type === "Identifier" && annotation.typeName.name === "TServiceParams"
-  );
+  return ann.typeName.type === "Identifier" && ann.typeName.name === "TServiceParams";
 }
 
-const rule: Rule.RuleModule = {
+type ServiceNode =
+  | TSESTree.ArrowFunctionExpression
+  | TSESTree.FunctionDeclaration
+  | TSESTree.FunctionExpression;
+
+const rule: TSESLint.RuleModule<MessageIds, [], PluginDocs> = {
   create(context) {
     // Stack of service-function nodes currently open. We are "inside a service"
     // whenever the stack is non-empty — including within nested inner functions
     // (helpers, callbacks) declared inside the service factory.
-    const serviceStack: Rule.Node[] = [];
+    const serviceStack: ServiceNode[] = [];
 
-    function enterFunction(node: Rule.Node): void {
-      const n = node as unknown as { params: NodeLike[] };
-      if (n.params.some(p => isTServiceParams(p))) {
+    function enterFunction(node: ServiceNode): void {
+      if (node.params.some(p => isTServiceParams(p))) {
         serviceStack.push(node);
       }
     }
 
-    function exitFunction(node: Rule.Node): void {
+    function exitFunction(node: ServiceNode): void {
       if (serviceStack[serviceStack.length - STACK_TOP_OFFSET] === node) {
         serviceStack.pop();
       }
@@ -84,20 +80,12 @@ const rule: Rule.RuleModule = {
     return {
       ArrowFunctionExpression: enterFunction,
       "ArrowFunctionExpression:exit": exitFunction,
-      CallExpression(node) {
+      CallExpression(node: TSESTree.CallExpression) {
         if (!serviceStack?.length) {
           return;
         }
 
-        const n = node as unknown as {
-          callee: {
-            type: string;
-            computed: boolean;
-            property: { type: string; name: string };
-            object: { type: string; name: string };
-          };
-        };
-        const { callee } = n;
+        const { callee } = node;
 
         // Must be a non-computed member expression: receiver.method(...)
         if (callee.type !== "MemberExpression" || callee.computed) {
@@ -121,7 +109,8 @@ const rule: Rule.RuleModule = {
         // The receiver must resolve to a binding defined OUTSIDE the factory
         // boundary (module-scope, imported, or global).
         const [factoryNode] = serviceStack;
-        if (!isHoistableStatic(object as unknown as NodeLike, context.sourceCode, factoryNode as unknown as NodeLike)) {
+        const sourceCode: TSESLint.SourceCode = context.sourceCode;
+        if (!isHoistableStatic(object, sourceCode, factoryNode)) {
           return;
         }
 
@@ -137,7 +126,7 @@ const rule: Rule.RuleModule = {
       "FunctionExpression:exit": exitFunction,
     };
   },
-
+  defaultOptions: [],
   meta: {
     docs: {
       description:
@@ -151,6 +140,7 @@ const rule: Rule.RuleModule = {
         "shares state across invocations. Copy it locally (`const x = [...{{name}}]`) and mutate the copy.",
       ].join(" "),
     },
+    schema: [],
     type: "problem",
   },
 };
