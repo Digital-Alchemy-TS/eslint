@@ -33,6 +33,7 @@
     "type-check": "tsc --noEmit -p tsconfig.json && echo \"✓ type-check passed\"",
     "test": "vitest run",
     "test:watch": "vitest",
+    "upgrade": "ncu --upgrade --cooldown 48h && truncate -s 0 yarn.lock && yarn install",
     "update:docs": "eslint-doc-generator",
     "check:docs": "eslint-doc-generator --check"
   },
@@ -60,15 +61,16 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^25.9.3",
-    "@typescript-eslint/parser": "^8.0.0",
-    "@typescript-eslint/rule-tester": "^8.0.0",
-    "@typescript-eslint/utils": "^8.0.0",
+    "@typescript-eslint/parser": "^8.61.0",
+    "@typescript-eslint/rule-tester": "^8.61.0",
+    "@typescript-eslint/utils": "^8.61.0",
     "@vitest/coverage-v8": "^4.1.8",
     "eslint": "^10.5.0",
     "eslint-doc-generator": "^3.6.0",
-    "prettier": "^3.3.0",
+    "npm-check-updates": "^22.2.3",
+    "prettier": "^3.8.4",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.0.0",
+    "typescript-eslint": "^8.61.0",
     "vitest": "^4.1.8"
   },
   "publishConfig": {
