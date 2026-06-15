@@ -58,10 +58,15 @@ jobs:
       - run: yarn build
       - run: yarn test
 
-  # TODO(phase-b): add docs-drift gate once verified on Node 22.
-  # Local verification ran on Node 24, where eslint-doc-generator's CJS require() of an ESM
-  # module namespace returns { __esModule, default } instead of the plugin directly, causing
-  # "Could not find exported `rules` object" (exit 1).  On Node 22 (the CI runner above)
-  # require('.mjs') throws ERR_REQUIRE_ESM so the tool falls back to its ESM import() path
-  # and loads the plugin correctly.  Add this job once Phase B lands its first rule and
-  # local Node 22 verification is possible, or pin the job to node 22 explicitly.
+  docs-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+      - run: corepack enable
+      - run: yarn config set enableImmutableInstalls false
+      - run: yarn
+      - run: yarn build
+      - run: yarn check:docs
