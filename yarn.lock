@@ -70,7 +70,7 @@ __metadata:
     "@vitest/coverage-v8": "npm:^4.1.8"
     eslint: "npm:^10.5.0"
     eslint-doc-generator: "npm:^3.6.0"
-    npm-check-updates: "npm:^22.2.3"
+    npm-check-updates: "npm:^23.0.2"
     prettier: "npm:^3.8.4"
     typescript: "npm:^6.0.3"
     typescript-eslint: "npm:^8.61.0"
@@ -1850,13 +1850,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"npm-check-updates@npm:^22.2.3":
-  version: 22.2.9
-  resolution: "npm-check-updates@npm:22.2.9"
+"npm-check-updates@npm:^23.0.2":
+  version: 23.0.2
+  resolution: "npm-check-updates@npm:23.0.2"
   bin:
     ncu: build/cli.js
     npm-check-updates: build/cli.js
-  checksum: 10/278372e9b72c3ab09f5f0d162c318ce5e461daf8640852fd7cde55118e8b4b257245f906313f1fe0dbf0f2eb8e5c9775bcf6ad39377fc157ddc1134372ffabbb
+  checksum: 10/e5caa7b3b1cb232a0f8f76e770c604a1262e951a4bb3f6be5efe3f6faf568b431cb2b1cc9f745457a6c5008788fbb3a55f8213960a6b2a90b41ea2dbd27a1214
   languageName: node
   linkType: hard
 
