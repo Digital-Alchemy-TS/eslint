@@ -64,7 +64,7 @@
     "@typescript-eslint/parser": "^8.61.0",
     "@typescript-eslint/rule-tester": "^8.61.0",
     "@typescript-eslint/utils": "^8.61.0",
-    "@vitest/coverage-v8": "^4.1.8",
+    "@vitest/coverage-v8": "^5.0.0",
     "eslint": "^10.5.0",
     "eslint-doc-generator": "^3.6.0",
     "npm-check-updates": "^23.0.2",
